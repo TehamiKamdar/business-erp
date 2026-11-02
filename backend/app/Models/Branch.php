@@ -53,4 +53,29 @@ class Branch extends Model
     {
         return $this->hasMany(SalesInvoice::class);
     }
+
+    public function cashBankAccounts()
+    {
+        return $this->hasMany(CashBankAccount::class);
+    }
+
+    public function customerPayments()
+    {
+        return $this->hasMany(CustomerPayment::class);
+    }
+
+    public function supplierPayments()
+    {
+        return $this->hasMany(SupplierPayment::class);
+    }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
+
+    public function cashBankTransactions()
+    {
+        return $this->hasMany(CashBankTransaction::class);
+    }
 }

@@ -50,4 +50,19 @@ class Company extends Model
             $query->where('company_id', $this->id);
         });
     }
+
+    public function cashBankAccounts()
+    {
+        return $this->hasMany(CashBankAccount::class);
+    }
+
+    public function paymentMethods()
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+
+    public function expenseCategories()
+    {
+        return $this->hasMany(ExpenseCategory::class);
+    }
 }

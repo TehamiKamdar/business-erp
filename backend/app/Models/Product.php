@@ -31,11 +31,6 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function unit()
-    {
-        return $this->belongsTo(Unit::class);
-    }
-
     public function purchaseRequestItems()
     {
         return $this->hasMany(PurchaseRequestItem::class);
@@ -96,5 +91,15 @@ class Product extends Model
             'id',
             'id'
         );
+    }
+
+    public function productUnits()
+    {
+        return $this->hasMany(ProductUnit::class);
+    }
+
+    public function supplierPaymentTradeIns()
+    {
+        return $this->hasMany(SupplierPaymentTradeIn::class);
     }
 }

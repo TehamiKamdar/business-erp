@@ -57,4 +57,9 @@ class Warehouse extends Model
     {
         return $this->hasMany(SalesReturn::class);
     }
+
+    public function supplierPaymentTradeIns()
+    {
+        return $this->hasMany(SupplierPaymentTradeIn::class);
+    }
 }
