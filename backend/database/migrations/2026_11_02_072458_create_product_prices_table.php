@@ -30,8 +30,8 @@ return new class extends Migration
             $table->unique([
                 'product_unit_id',
                 'price_type',
-                'min_quantity'
-            ]);
+                'minimum_quantity'
+            ],'prod_price_unit_type_qty_unique');
         });
     }
 
