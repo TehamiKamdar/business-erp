@@ -38,4 +38,19 @@ class Branch extends Model
     {
         return $this->hasMany(SupplierInvoice::class);
     }
+
+    public function quotations()
+    {
+        return $this->hasMany(Quotation::class);
+    }
+
+    public function salesOrders()
+    {
+        return $this->hasMany(SalesOrder::class);
+    }
+
+    public function salesInvoices()
+    {
+        return $this->hasMany(SalesInvoice::class);
+    }
 }

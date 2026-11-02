@@ -60,4 +60,41 @@ class Product extends Model
             'product_unit_id'
         );
     }
+
+    public function quotationItems()
+    {
+        return $this->hasMany(QuotationItem::class);
+    }
+
+    public function salesOrderItems()
+    {
+        return $this->hasMany(SalesOrderItem::class);
+    }
+
+    public function deliveryItems()
+    {
+        return $this->hasMany(DeliveryItem::class);
+    }
+
+    public function salesInvoiceItems()
+    {
+        return $this->hasMany(SalesInvoiceItem::class);
+    }
+
+    public function salesReturnItems()
+    {
+        return $this->hasMany(SalesReturnItem::class);
+    }
+
+    public function customerPrices()
+    {
+        return $this->hasManyThrough(
+            CustomerPrice::class,
+            ProductUnit::class,
+            'product_id',
+            'product_unit_id',
+            'id',
+            'id'
+        );
+    }
 }
