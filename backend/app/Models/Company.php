@@ -65,4 +65,19 @@ class Company extends Model
     {
         return $this->hasMany(ExpenseCategory::class);
     }
+
+    public function fiscalYears()
+    {
+        return $this->hasMany(FiscalYear::class);
+    }
+
+    public function chartOfAccounts()
+    {
+        return $this->hasMany(ChartOfAccount::class);
+    }
+
+    public function journalEntries()
+    {
+        return $this->hasMany(JournalEntry::class);
+    }
 }

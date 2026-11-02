@@ -78,4 +78,9 @@ class Branch extends Model
     {
         return $this->hasMany(CashBankTransaction::class);
     }
+
+    public function journalEntries()
+    {
+        return $this->hasMany(JournalEntry::class);
+    }
 }
