@@ -23,4 +23,19 @@ class Branch extends Model
     {
         return $this->belongsTo(Company::class);
     }
+
+    public function purchaseRequests()
+    {
+        return $this->hasMany(PurchaseRequest::class);
+    }
+
+    public function purchaseOrders()
+    {
+        return $this->hasMany(PurchaseOrder::class);
+    }
+
+    public function supplierInvoices()
+    {
+        return $this->hasMany(SupplierInvoice::class);
+    }
 }

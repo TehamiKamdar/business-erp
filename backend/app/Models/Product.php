@@ -35,4 +35,29 @@ class Product extends Model
     {
         return $this->belongsTo(Unit::class);
     }
+
+    public function purchaseRequestItems()
+    {
+        return $this->hasMany(PurchaseRequestItem::class);
+    }
+
+    public function purchaseOrderItems()
+    {
+        return $this->hasMany(PurchaseOrderItem::class);
+    }
+
+    public function goodsReceiptItems()
+    {
+        return $this->hasMany(GoodsReceiptItem::class);
+    }
+
+    public function supplierPrices()
+    {
+        return $this->hasManyThrough(
+            SupplierProductPrice::class,
+            ProductUnit::class,
+            'product_id',
+            'product_unit_id'
+        );
+    }
 }
