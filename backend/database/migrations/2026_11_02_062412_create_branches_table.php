@@ -12,7 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('branches', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
+
+            $table->foreignUuid('company_id')->constrained('companies')->cascadeOnDelete();
+
+            $table->string('name');
+            $table->string('code');
+            $table->text('address')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('status', 50)->default('active');
+
             $table->timestamps();
         });
     }
