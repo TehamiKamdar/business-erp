@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BrandController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProductPriceController;
 use App\Http\Controllers\Api\ProductUnitController;
 use App\Http\Controllers\Api\UnitController;
 use Illuminate\Support\Facades\Route;
@@ -169,6 +170,34 @@ Route::middleware('auth:sanctum')->group(function () {
                     ->middleware('permission:products.activate');
 
                 Route::patch('/{id}/deactivate', [ProductUnitController::class, 'deactivate'])
+                    ->middleware('permission:products.deactivate');
+            });
+
+            // Product Prices
+            Route::prefix('products/{productId}/units/{productUnitId}/prices')->group(function () {
+
+                Route::get('/', [ProductPriceController::class, 'index'])
+                    ->middleware('permission:products.view');
+
+                Route::post('/', [ProductPriceController::class, 'store'])
+                    ->middleware('permission:products.edit');
+
+                Route::get('/{id}', [ProductPriceController::class, 'show'])
+                    ->middleware('permission:products.view');
+
+                Route::put('/{id}', [ProductPriceController::class, 'update'])
+                    ->middleware('permission:products.edit');
+
+                Route::patch('/{id}', [ProductPriceController::class, 'update'])
+                    ->middleware('permission:products.edit');
+
+                Route::delete('/{id}', [ProductPriceController::class, 'destroy'])
+                    ->middleware('permission:products.archive');
+
+                Route::patch('/{id}/activate', [ProductPriceController::class, 'activate'])
+                    ->middleware('permission:products.activate');
+
+                Route::patch('/{id}/deactivate', [ProductPriceController::class, 'deactivate'])
                     ->middleware('permission:products.deactivate');
             });
         });

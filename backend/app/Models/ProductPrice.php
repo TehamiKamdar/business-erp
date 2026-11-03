@@ -17,6 +17,12 @@ class ProductPrice extends Model
         'effective_from',
         'status',
     ];
+    
+    protected $casts = [
+        'price' => 'decimal:2',
+        'minimum_quantity' => 'decimal:2',
+        'effective_from' => 'date',
+    ];
 
     public function productUnit()
     {
