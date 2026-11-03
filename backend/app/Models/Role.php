@@ -19,13 +19,6 @@ class Role extends Model
         'status',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'status' => 'boolean',
-        ];
-    }
-
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
