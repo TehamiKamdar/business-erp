@@ -141,7 +141,7 @@ class UnitController extends Controller
     public function deactivate(Request $request, string $id)
     {
         $unit = Unit::where('company_id', $this->companyId($request))
-            ->where('status', '!=', 'active')
+            ->where('status', '!=', 'inactive')
             ->findOrFail($id);
 
         $unit->update([

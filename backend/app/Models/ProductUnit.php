@@ -18,6 +18,11 @@ class ProductUnit extends Model
         'status',
     ];
 
+    public function productPrices()
+    {
+        return $this->hasMany(ProductPrice::class);
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

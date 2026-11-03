@@ -152,7 +152,7 @@ class BrandController extends Controller
     public function deactivate(Request $request, string $id)
     {
         $brand = Brand::where('company_id', $this->companyId($request))
-            ->where('status', 'active')
+            ->where('status', '!=', 'inactive')
             ->findOrFail($id);
 
         $brand->update(['status' => 'inactive']);

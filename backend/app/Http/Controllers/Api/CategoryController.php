@@ -181,7 +181,7 @@ class CategoryController extends Controller
     public function deactivate(Request $request, string $id)
     {
         $category = Category::where('company_id', $this->companyId($request))
-            ->where('status', '!=', 'active')
+            ->where('status', '!=', 'inactive')
             ->findOrFail($id);
 
         $category->update([     

@@ -12,6 +12,7 @@ class Product extends Model
     protected $fillable = [
         'company_id',
         'category_id',
+        'brand_id',
         'base_unit_id',
         'name',
         'sku',
@@ -29,6 +30,16 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function baseUnit()
+    {
+        return $this->belongsTo(Unit::class, 'base_unit_id');
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
     }
 
     public function purchaseRequestItems()
@@ -101,5 +112,18 @@ class Product extends Model
     public function supplierPaymentTradeIns()
     {
         return $this->hasMany(SupplierPaymentTradeIn::class);
+    }
+
+
+    public function productPrices()
+    {
+        return $this->hasManyThrough(
+            ProductPrice::class,
+            ProductUnit::class,
+            'product_id',
+            'product_unit_id',
+            'id',
+            'id'
+        );
     }
 }
