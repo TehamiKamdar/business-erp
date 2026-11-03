@@ -13,10 +13,21 @@ class ProductUnit extends Model
         'product_id',
         'unit_id',
         'conversion_factor',
+        'is_base_unit',
         'is_purchase_unit',
         'is_sale_unit',
         'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'conversion_factor' => 'decimal:4',
+            'is_base_unit' => 'boolean',
+            'is_purchase_unit' => 'boolean',
+            'is_sale_unit' => 'boolean',
+        ];
+    }
 
     public function productPrices()
     {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
@@ -39,7 +40,10 @@ class ProductController extends Controller
         $products = Product::with([
                 'category:id,name',
                 'brand:id,name',
-                'baseUnit:id,name,code',
+                'productUnits' => function ($query) {
+                    $query->where('status', 'active')
+                        ->with('unit:id,name,code');
+                },
             ])
             ->where('company_id', $companyId)
             ->where('status', 'active')
@@ -116,11 +120,31 @@ class ProductController extends Controller
             ],
         ]);
 
-        $product = Product::create([
-            ...$validated,
-            'company_id' => $companyId,
-            'status' => 'active',
-        ]);
+        $product = DB::transaction(function () use ($validated, $companyId) {
+
+            $product = Product::create([
+                'company_id' => $companyId,
+                'category_id' => $validated['category_id'],
+                'brand_id' => $validated['brand_id'] ?? null,
+                'name' => $validated['name'],
+                'sku' => $validated['sku'],
+                'barcode' => $validated['barcode'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'reorder_level' => $validated['reorder_level'] ?? 0,
+                'status' => 'active',
+            ]);
+
+            $product->productUnits()->create([
+                'unit_id' => $validated['base_unit_id'],
+                'conversion_factor' => 1,
+                'is_base_unit' => true,
+                'is_purchase_unit' => false,
+                'is_sale_unit' => true,
+                'status' => 'active',
+            ]);
+
+            return $product;
+        });
 
         return response()->json([
             'success' => true,
@@ -128,7 +152,7 @@ class ProductController extends Controller
             'data' => $product->load([
                 'category:id,name',
                 'brand:id,name',
-                'baseUnit:id,name,code',
+                'productUnits.unit:id,name,code',
             ]),
         ], 201);
     }
@@ -147,9 +171,10 @@ class ProductController extends Controller
         $product = Product::with([
                 'category:id,name',
                 'brand:id,name',
-                'baseUnit:id,name,code',
-                'productUnits.unit:id,name,code',
-                'productPrices',
+                'productUnits' => function ($query) {
+                    $query->with('unit:id,name,code')
+                        ->with('productPrices');
+                },
             ])
             ->where('company_id', $companyId)
             ->findOrFail($id);
@@ -173,6 +198,7 @@ class ProductController extends Controller
         }
 
         $product = Product::where('company_id', $companyId)
+            ->where('status', '!=', 'archived')
             ->findOrFail($id);
 
         $validated = $request->validate([
@@ -190,15 +216,6 @@ class ProductController extends Controller
                 'nullable',
                 'uuid',
                 Rule::exists('brands', 'id')
-                    ->where('company_id', $companyId)
-                    ->where('status', 'active'),
-            ],
-
-            'base_unit_id' => [
-                'sometimes',
-                'required',
-                'uuid',
-                Rule::exists('units', 'id')
                     ->where('company_id', $companyId)
                     ->where('status', 'active'),
             ],
@@ -243,7 +260,7 @@ class ProductController extends Controller
             'data' => $product->fresh()->load([
                 'category:id,name',
                 'brand:id,name',
-                'baseUnit:id,name,code',
+                'productUnits.unit:id,name,code',
             ]),
         ]);
     }
@@ -311,6 +328,7 @@ class ProductController extends Controller
 
         $product = Product::where('company_id', $companyId)
             ->where('status', '!=', 'inactive')
+            ->where('status', '!=', 'archived')
             ->findOrFail($id);
 
         $product->update([

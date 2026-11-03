@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignUuid('product_id')->constrained('products')->cascadeOnDelete();
             $table->foreignUuid('unit_id')->constrained('units')->restrictOnDelete();
 
-            $table->decimal('conversion_factor', 15, 2);
+            $table->decimal('conversion_factor', 15, 4);
 
             $table->boolean('is_purchase_unit')->default(false);
             $table->boolean('is_sale_unit')->default(false);

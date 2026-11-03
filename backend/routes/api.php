@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BrandController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProductUnitController;
 use App\Http\Controllers\Api\UnitController;
 use Illuminate\Support\Facades\Route;
 
@@ -141,6 +142,33 @@ Route::middleware('auth:sanctum')->group(function () {
                     ->middleware('permission:products.activate');
 
                 Route::patch('/{id}/deactivate', [ProductController::class, 'deactivate'])
+                    ->middleware('permission:products.deactivate');
+            });
+
+            // Product Units
+            Route::prefix('products/{productId}/units')->group(function () {
+                Route::get('/', [ProductUnitController::class, 'index'])
+                    ->middleware('permission:products.view');
+
+                Route::post('/', [ProductUnitController::class, 'store'])
+                    ->middleware('permission:products.edit');
+
+                Route::get('/{id}', [ProductUnitController::class, 'show'])
+                    ->middleware('permission:products.view');
+
+                Route::put('/{id}', [ProductUnitController::class, 'update'])
+                    ->middleware('permission:products.edit');
+
+                Route::patch('/{id}', [ProductUnitController::class, 'update'])
+                    ->middleware('permission:products.edit');
+
+                Route::delete('/{id}', [ProductUnitController::class, 'destroy'])
+                    ->middleware('permission:products.archive');
+
+                Route::patch('/{id}/activate', [ProductUnitController::class, 'activate'])
+                    ->middleware('permission:products.activate');
+
+                Route::patch('/{id}/deactivate', [ProductUnitController::class, 'deactivate'])
                     ->middleware('permission:products.deactivate');
             });
         });

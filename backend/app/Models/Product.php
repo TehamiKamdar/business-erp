@@ -13,7 +13,6 @@ class Product extends Model
         'company_id',
         'category_id',
         'brand_id',
-        'base_unit_id',
         'name',
         'sku',
         'barcode',
@@ -30,11 +29,6 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
-    }
-
-    public function baseUnit()
-    {
-        return $this->belongsTo(Unit::class, 'base_unit_id');
     }
 
     public function brand()
