@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Company extends Model
 {
@@ -79,5 +80,25 @@ class Company extends Model
     public function journalEntries()
     {
         return $this->hasMany(JournalEntry::class);
+    }
+
+    public function departments(): HasMany
+    {
+        return $this->hasMany(Department::class);
+    }
+
+    public function designations(): HasMany
+    {
+        return $this->hasMany(Designation::class);
+    }
+
+    public function employeeProfiles(): HasMany
+    {
+        return $this->hasMany(Employee::class);
+    }
+
+    public function employeeInvitations(): HasMany
+    {
+        return $this->hasMany(EmployeeInvitation::class);
     }
 }

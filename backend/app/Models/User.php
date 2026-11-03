@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -39,5 +41,25 @@ class User extends Authenticatable
     public function branches(): BelongsToMany
     {
         return $this->belongsToMany(Branch::class);
+    }
+
+    public function employeeProfile(): HasOne
+    {
+        return $this->hasOne(Employee::class);
+    }
+
+    public function uploadedEmployeeDocuments(): HasMany
+    {
+        return $this->hasMany(EmployeeDocument::class, 'uploaded_by');
+    }
+
+    public function sentEmployeeInvitations(): HasMany
+    {
+        return $this->hasMany(EmployeeInvitation::class, 'invited_by');
+    }
+
+    public function acceptedEmployeeInvitations(): HasMany
+    {
+        return $this->hasMany(EmployeeInvitation::class, 'accepted_user_id');
     }
 }

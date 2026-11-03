@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Branch extends Model
 {
@@ -82,5 +83,10 @@ class Branch extends Model
     public function journalEntries()
     {
         return $this->hasMany(JournalEntry::class);
+    }
+
+    public function employeeHistories(): HasMany
+    {
+        return $this->hasMany(EmployeeBranchHistory::class);
     }
 }
