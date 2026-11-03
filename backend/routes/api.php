@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\UnitController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', function () {
@@ -54,15 +55,35 @@ Route::middleware('auth:sanctum')->group(function () {
                         ->middleware('permission:categories.deactivate');
                 });
 
-            // Products
-            Route::middleware('permission:products.view')->group(function () {
-                // Product routes will be added here
-            });
-
             // Units
-            Route::middleware('permission:units.view')->group(function () {
-                // Unit routes will be added here
-            });
+            Route::prefix('units')
+                ->name('units.')
+                ->group(function () {
+
+                    Route::get('/', [UnitController::class, 'index'])
+                        ->middleware('permission:units.view');
+
+                    Route::post('/', [UnitController::class, 'store'])
+                        ->middleware('permission:units.create');
+
+                    Route::get('/{id}', [UnitController::class, 'show'])
+                        ->middleware('permission:units.view');
+
+                    Route::put('/{id}', [UnitController::class, 'update'])
+                        ->middleware('permission:units.edit');
+
+                    Route::patch('/{id}', [UnitController::class, 'update'])
+                        ->middleware('permission:units.edit');
+
+                    Route::delete('/{id}', [UnitController::class, 'destroy'])
+                        ->middleware('permission:units.archive');
+
+                    Route::patch('/{id}/activate', [UnitController::class, 'activate'])
+                        ->middleware('permission:units.activate');
+
+                    Route::patch('/{id}/deactivate', [UnitController::class, 'deactivate'])
+                        ->middleware('permission:units.deactivate');
+                });
 
             // Brands
             Route::middleware('permission:brands.view')->group(function () {

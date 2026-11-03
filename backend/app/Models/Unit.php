@@ -13,7 +13,6 @@ class Unit extends Model
         'company_id',
         'name',
         'code',
-        'description',
         'status',
     ];
 
