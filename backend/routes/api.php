@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BrandController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\UnitController;
 use Illuminate\Support\Facades\Route;
@@ -86,9 +87,34 @@ Route::middleware('auth:sanctum')->group(function () {
                 });
 
             // Brands
-            Route::middleware('permission:brands.view')->group(function () {
-                // Brand routes will be added here
-            });
+            Route::prefix('brands')
+                ->name('brands.')
+                ->group(function () {
+
+                    Route::get('/', [BrandController::class, 'index'])
+                        ->middleware('permission:brands.view');
+
+                    Route::post('/', [BrandController::class, 'store'])
+                        ->middleware('permission:brands.create');
+
+                    Route::get('/{id}', [BrandController::class, 'show'])
+                        ->middleware('permission:brands.view');
+
+                    Route::put('/{id}', [BrandController::class, 'update'])
+                        ->middleware('permission:brands.edit');
+
+                    Route::patch('/{id}', [BrandController::class, 'update'])
+                        ->middleware('permission:brands.edit');
+
+                    Route::delete('/{id}', [BrandController::class, 'destroy'])
+                        ->middleware('permission:brands.archive');
+
+                    Route::patch('/{id}/activate', [BrandController::class, 'activate'])
+                        ->middleware('permission:brands.activate');
+
+                    Route::patch('/{id}/deactivate', [BrandController::class, 'deactivate'])
+                        ->middleware('permission:brands.deactivate');
+                });
         });
 
     // Test Routes
