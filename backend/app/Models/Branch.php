@@ -17,8 +17,16 @@ class Branch extends Model
         'code',
         'address',
         'phone',
+        'is_main_branch',
         'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_main_branch' => 'boolean',
+        ];
+    }
 
     public function company(): BelongsTo
     {

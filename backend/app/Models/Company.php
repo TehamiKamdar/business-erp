@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Company extends Model
 {
@@ -43,6 +44,18 @@ class Company extends Model
     public function branches()
     {
         return $this->hasMany(Branch::class);
+    }
+
+    public function warehouses(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Warehouse::class,
+            Branch::class,
+            'company_id',
+            'branch_id',
+            'id',
+            'id'
+        );
     }
 
     public function users()
@@ -92,7 +105,7 @@ class Company extends Model
         return $this->hasMany(Designation::class);
     }
 
-    public function employeeProfiles(): HasMany
+    public function employees(): HasMany
     {
         return $this->hasMany(Employee::class);
     }

@@ -35,15 +35,15 @@ class User extends Authenticatable
 
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class);
+        return $this->belongsToMany(Role::class, 'role_user');
     }
 
     public function branches(): BelongsToMany
     {
-        return $this->belongsToMany(Branch::class);
+        return $this->belongsToMany(Branch::class, 'user_branch');
     }
 
-    public function employeeProfile(): HasOne
+    public function employee(): HasOne
     {
         return $this->hasOne(Employee::class);
     }
