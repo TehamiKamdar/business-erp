@@ -21,6 +21,9 @@ class PurchaseRequest extends Model
         'requested_by',
         'approved_by',
         'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'rejection_reason',
     ];
 
     protected function casts(): array
@@ -29,6 +32,7 @@ class PurchaseRequest extends Model
             'request_date' => 'date',
             'required_date' => 'date',
             'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 
@@ -55,6 +59,16 @@ class PurchaseRequest extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function rejecter()
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    public function canceler()
+    {
+        return $this->belongsTo(User::class, 'canceled_by');
     }
 
     public function purchaseOrders()

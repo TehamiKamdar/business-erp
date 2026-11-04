@@ -21,6 +21,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     require __DIR__ . '/product-catalog.php';
     require __DIR__ . '/suppliers.php';
+    require __DIR__ . '/purchasing.php';
 
     // Test Routes
     Route::get('/test-permission', function () {
