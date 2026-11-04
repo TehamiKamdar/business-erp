@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\Suppliers\SupplierController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('suppliers')->group(function () {

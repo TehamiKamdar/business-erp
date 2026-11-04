@@ -1,12 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\BrandController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\ProductPriceController;
-use App\Http\Controllers\Api\ProductUnitController;
-use App\Http\Controllers\Api\UnitController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', function () {
@@ -26,7 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     require __DIR__ . '/product-catalog.php';
-    require __DIR__ . '/purchasing.php';
+    require __DIR__ . '/suppliers.php';
 
     // Test Routes
     Route::get('/test-permission', function () {

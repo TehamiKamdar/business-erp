@@ -1,14 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\ProductCatalog;
 
 use App\Http\Controllers\Controller;
-use App\Models\Brand;
+use App\Models\Unit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
-class BrandController extends Controller
+class UnitController extends Controller
 {
     private function companyId(Request $request): string
     {
@@ -27,14 +26,14 @@ class BrandController extends Controller
 
     public function index(Request $request)
     {
-        $brands = Brand::where('company_id', $this->companyId($request))
+        $units = Unit::where('company_id', $this->companyId($request))
             ->where('status', 'active')
             ->latest()
             ->paginate(15);
 
         return response()->json([
             'success' => true,
-            'data' => $brands,
+            'data' => $units,
         ]);
     }
 
@@ -44,42 +43,37 @@ class BrandController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-        ]);
-
-        $slug = Str::slug($validated['name']);
-
-        $request->validate([
-            'name' => [
-                Rule::unique('brands', 'slug')
-                    ->where('company_id', $companyId)
-                    ->where('slug', $slug),
+            'code' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('units', 'code')
+                    ->where('company_id', $companyId),
             ],
         ]);
 
-        $brand = Brand::create([
+        $unit = Unit::create([
             'company_id' => $companyId,
             'name' => $validated['name'],
-            'slug' => $slug,
-            'description' => $validated['description'] ?? null,
+            'code' => $validated['code'],
             'status' => 'active',
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Brand created successfully.',
-            'data' => $brand,
+            'message' => 'Unit created successfully.',
+            'data' => $unit,
         ], 201);
     }
 
     public function show(Request $request, string $id)
     {
-        $brand = Brand::where('company_id', $this->companyId($request))
+        $unit = Unit::where('company_id', $this->companyId($request))
             ->findOrFail($id);
 
         return response()->json([
             'success' => true,
-            'data' => $brand,
+            'data' => $unit,
         ]);
     }
 
@@ -87,80 +81,77 @@ class BrandController extends Controller
     {
         $companyId = $this->companyId($request);
 
-        $brand = Brand::where('company_id', $companyId)
+        $unit = Unit::where('company_id', $companyId)
             ->findOrFail($id);
 
         $validated = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            'code' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('units', 'code')
+                    ->where('company_id', $companyId)
+                    ->ignore($unit->id),
+            ],
         ]);
 
-        if (isset($validated['name'])) {
-            $slug = Str::slug($validated['name']);
-
-            $request->validate([
-                'name' => [
-                    Rule::unique('brands', 'slug')
-                        ->where('company_id', $companyId)
-                        ->where('slug', $slug)
-                        ->ignore($brand->id, 'id'),
-                ],
-            ]);
-
-            $validated['slug'] = $slug;
-        }
-
-        $brand->update($validated);
+        $unit->update($validated);
 
         return response()->json([
             'success' => true,
-            'message' => 'Brand updated successfully.',
-            'data' => $brand->fresh(),
+            'message' => 'Unit updated successfully.',
+            'data' => $unit->fresh(),
         ]);
     }
 
     public function destroy(Request $request, string $id)
     {
-        $brand = Brand::where('company_id', $this->companyId($request))
+        $unit = Unit::where('company_id', $this->companyId($request))
             ->findOrFail($id);
 
-        $brand->update([
+        $unit->update([
             'status' => 'archived',
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Brand archived successfully.',
+            'message' => 'Unit archived successfully.',
         ]);
     }
 
     public function activate(Request $request, string $id)
     {
-        $brand = Brand::where('company_id', $this->companyId($request))
+        $unit = Unit::where('company_id', $this->companyId($request))
             ->where('status', '!=', 'active')
             ->findOrFail($id);
 
-        $brand->update(['status' => 'active']);
+        $unit->update([
+            'status' => 'active',
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Brand activated successfully.',
-            'data' => $brand,
+            'message' => 'Unit activated successfully.',
+            'data' => $unit,
         ]);
     }
 
     public function deactivate(Request $request, string $id)
     {
-        $brand = Brand::where('company_id', $this->companyId($request))
+        $unit = Unit::where('company_id', $this->companyId($request))
             ->where('status', '!=', 'inactive')
             ->findOrFail($id);
 
-        $brand->update(['status' => 'inactive']);
+        $unit->update([
+            'status' => 'inactive',
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Brand deactivated successfully.',
-            'data' => $brand,
+            'message' => 'Unit deactivated successfully.',
+            'data' => $unit,
         ]);
     }
 }

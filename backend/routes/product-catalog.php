@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Controllers\Api\BrandController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\ProductPriceController;
-use App\Http\Controllers\Api\ProductUnitController;
-use App\Http\Controllers\Api\UnitController;
+use App\Http\Controllers\Api\ProductCatalog\BrandController;
+use App\Http\Controllers\Api\ProductCatalog\CategoryController;
+use App\Http\Controllers\Api\ProductCatalog\ProductController;
+use App\Http\Controllers\Api\ProductCatalog\ProductPriceController;
+use App\Http\Controllers\Api\ProductCatalog\ProductUnitController;
+use App\Http\Controllers\Api\ProductCatalog\UnitController;
 use Illuminate\Support\Facades\Route;
 
 // Product Catalog Routes

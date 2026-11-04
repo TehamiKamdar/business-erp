@@ -1,13 +1,14 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\ProductCatalog;
 
 use App\Http\Controllers\Controller;
-use App\Models\Unit;
+use App\Models\Brand;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
-class UnitController extends Controller
+class BrandController extends Controller
 {
     private function companyId(Request $request): string
     {
@@ -26,14 +27,14 @@ class UnitController extends Controller
 
     public function index(Request $request)
     {
-        $units = Unit::where('company_id', $this->companyId($request))
+        $brands = Brand::where('company_id', $this->companyId($request))
             ->where('status', 'active')
             ->latest()
             ->paginate(15);
 
         return response()->json([
             'success' => true,
-            'data' => $units,
+            'data' => $brands,
         ]);
     }
 
@@ -43,37 +44,42 @@ class UnitController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => [
-                'required',
-                'string',
-                'max:20',
-                Rule::unique('units', 'code')
-                    ->where('company_id', $companyId),
+            'description' => ['nullable', 'string'],
+        ]);
+
+        $slug = Str::slug($validated['name']);
+
+        $request->validate([
+            'name' => [
+                Rule::unique('brands', 'slug')
+                    ->where('company_id', $companyId)
+                    ->where('slug', $slug),
             ],
         ]);
 
-        $unit = Unit::create([
+        $brand = Brand::create([
             'company_id' => $companyId,
             'name' => $validated['name'],
-            'code' => $validated['code'],
+            'slug' => $slug,
+            'description' => $validated['description'] ?? null,
             'status' => 'active',
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Unit created successfully.',
-            'data' => $unit,
+            'message' => 'Brand created successfully.',
+            'data' => $brand,
         ], 201);
     }
 
     public function show(Request $request, string $id)
     {
-        $unit = Unit::where('company_id', $this->companyId($request))
+        $brand = Brand::where('company_id', $this->companyId($request))
             ->findOrFail($id);
 
         return response()->json([
             'success' => true,
-            'data' => $unit,
+            'data' => $brand,
         ]);
     }
 
@@ -81,77 +87,80 @@ class UnitController extends Controller
     {
         $companyId = $this->companyId($request);
 
-        $unit = Unit::where('company_id', $companyId)
+        $brand = Brand::where('company_id', $companyId)
             ->findOrFail($id);
 
         $validated = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'code' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:20',
-                Rule::unique('units', 'code')
-                    ->where('company_id', $companyId)
-                    ->ignore($unit->id),
-            ],
+            'description' => ['nullable', 'string'],
         ]);
 
-        $unit->update($validated);
+        if (isset($validated['name'])) {
+            $slug = Str::slug($validated['name']);
+
+            $request->validate([
+                'name' => [
+                    Rule::unique('brands', 'slug')
+                        ->where('company_id', $companyId)
+                        ->where('slug', $slug)
+                        ->ignore($brand->id, 'id'),
+                ],
+            ]);
+
+            $validated['slug'] = $slug;
+        }
+
+        $brand->update($validated);
 
         return response()->json([
             'success' => true,
-            'message' => 'Unit updated successfully.',
-            'data' => $unit->fresh(),
+            'message' => 'Brand updated successfully.',
+            'data' => $brand->fresh(),
         ]);
     }
 
     public function destroy(Request $request, string $id)
     {
-        $unit = Unit::where('company_id', $this->companyId($request))
+        $brand = Brand::where('company_id', $this->companyId($request))
             ->findOrFail($id);
 
-        $unit->update([
+        $brand->update([
             'status' => 'archived',
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Unit archived successfully.',
+            'message' => 'Brand archived successfully.',
         ]);
     }
 
     public function activate(Request $request, string $id)
     {
-        $unit = Unit::where('company_id', $this->companyId($request))
+        $brand = Brand::where('company_id', $this->companyId($request))
             ->where('status', '!=', 'active')
             ->findOrFail($id);
 
-        $unit->update([
-            'status' => 'active',
-        ]);
+        $brand->update(['status' => 'active']);
 
         return response()->json([
             'success' => true,
-            'message' => 'Unit activated successfully.',
-            'data' => $unit,
+            'message' => 'Brand activated successfully.',
+            'data' => $brand,
         ]);
     }
 
     public function deactivate(Request $request, string $id)
     {
-        $unit = Unit::where('company_id', $this->companyId($request))
+        $brand = Brand::where('company_id', $this->companyId($request))
             ->where('status', '!=', 'inactive')
             ->findOrFail($id);
 
-        $unit->update([
-            'status' => 'inactive',
-        ]);
+        $brand->update(['status' => 'inactive']);
 
         return response()->json([
             'success' => true,
-            'message' => 'Unit deactivated successfully.',
-            'data' => $unit,
+            'message' => 'Brand deactivated successfully.',
+            'data' => $brand,
         ]);
     }
 }
