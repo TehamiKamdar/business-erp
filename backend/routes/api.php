@@ -20,11 +20,13 @@ Route::get('/health', function () {
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    
     // Authenticated routes
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
     require __DIR__ . '/product-catalog.php';
+    require __DIR__ . '/purchasing.php';
 
     // Test Routes
     Route::get('/test-permission', function () {
