@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 03, 2026 at 01:08 PM
+-- Generation Time: Nov 05, 2026 at 01:07 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.3.33
 
@@ -38,6 +38,38 @@ CREATE TABLE `accounting_periods` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `audit_logs`
+--
+
+CREATE TABLE `audit_logs` (
+  `id` char(36) NOT NULL,
+  `company_id` char(36) DEFAULT NULL,
+  `branch_id` char(36) DEFAULT NULL,
+  `actor_type` varchar(255) DEFAULT NULL,
+  `actor_id` char(36) DEFAULT NULL,
+  `auditable_type` varchar(255) DEFAULT NULL,
+  `auditable_id` char(36) DEFAULT NULL,
+  `action` varchar(100) NOT NULL,
+  `old_values` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`old_values`)),
+  `new_values` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`new_values`)),
+  `description` text DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `metadata` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`metadata`)),
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `audit_logs`
+--
+
+INSERT INTO `audit_logs` (`id`, `company_id`, `branch_id`, `actor_type`, `actor_id`, `auditable_type`, `auditable_id`, `action`, `old_values`, `new_values`, `description`, `ip_address`, `user_agent`, `metadata`, `created_at`) VALUES
+('01a1abb9-eb7d-7280-8727-6e6824ba5f4a', '01a1a009-5ccb-7270-814b-95288da5b942', '01a1a009-5ce4-7307-b010-33d1406552a6', 'App\\Models\\User', '01a1a00d-2379-720c-b2e7-38fb42cc1dd8', 'App\\Models\\GoodsReceiptItem', '01a1abb9-eb77-7223-b9c3-c550dbfd8d1f', 'created', NULL, '{\"purchase_order_item_id\":\"01a1ab9c-b58b-7097-851d-3c9439f8c09f\",\"product_id\":\"01a1a167-6cb0-7180-a2fd-bacd940de08c\",\"unit_id\":\"01a1a168-03ca-7336-a4fa-8929c05cb80b\",\"received_quantity\":5,\"conversion_factor\":5,\"base_quantity\":25,\"unit_cost\":\"2200.00\",\"notes\":\"Received in good condition\"}', 'Goods receipt item created.', '127.0.0.1', 'Thunder Client (https://www.thunderclient.com)', '[]', '2026-11-05 07:40:50'),
+('01a1abb9-eb81-72d7-9828-308b1ba1f1ee', '01a1a009-5ccb-7270-814b-95288da5b942', '01a1a009-5ce4-7307-b010-33d1406552a6', 'App\\Models\\User', '01a1a00d-2379-720c-b2e7-38fb42cc1dd8', 'App\\Models\\GoodsReceipt', '01a1abb9-eb70-7212-9d63-d8a4da734c46', 'created', NULL, '{\"purchase_order_id\":\"01a1ab93-207e-732d-9e12-3696e93b683a\",\"warehouse_id\":\"01a1a009-5ce8-73c5-89dd-881e9a53222e\",\"receipt_number\":\"GRN-0001\",\"receipt_date\":\"2026-11-05T00:00:00.000000Z\",\"status\":\"draft\",\"items_count\":1}', 'Goods receipt draft created.', '127.0.0.1', 'Thunder Client (https://www.thunderclient.com)', '[]', '2026-11-05 07:40:50');
 
 -- --------------------------------------------------------
 
@@ -698,6 +730,13 @@ CREATE TABLE `goods_receipts` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `goods_receipts`
+--
+
+INSERT INTO `goods_receipts` (`id`, `purchase_order_id`, `warehouse_id`, `receipt_number`, `receipt_date`, `supplier_delivery_number`, `status`, `notes`, `received_by`, `posted_at`, `created_at`, `updated_at`) VALUES
+('01a1abb9-eb70-7212-9d63-d8a4da734c46', '01a1ab93-207e-732d-9e12-3696e93b683a', '01a1a009-5ce8-73c5-89dd-881e9a53222e', 'GRN-0001', '2026-11-05', 'SUP-DEL-001', 'draft', 'Initial goods receipt', '01a1a00d-2379-720c-b2e7-38fb42cc1dd8', NULL, '2026-11-05 07:40:50', '2026-11-05 07:40:50');
+
 -- --------------------------------------------------------
 
 --
@@ -718,6 +757,13 @@ CREATE TABLE `goods_receipt_items` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `goods_receipt_items`
+--
+
+INSERT INTO `goods_receipt_items` (`id`, `goods_receipt_id`, `purchase_order_item_id`, `product_id`, `unit_id`, `received_quantity`, `conversion_factor`, `base_quantity`, `unit_cost`, `notes`, `created_at`, `updated_at`) VALUES
+('01a1abb9-eb77-7223-b9c3-c550dbfd8d1f', '01a1abb9-eb70-7212-9d63-d8a4da734c46', '01a1ab9c-b58b-7097-851d-3c9439f8c09f', '01a1a167-6cb0-7180-a2fd-bacd940de08c', '01a1a168-03ca-7336-a4fa-8929c05cb80b', 5.00000000, 5.00000000, 25.00000000, 2200.00, 'Received in good condition', '2026-11-05 07:40:50', '2026-11-05 07:40:50');
 
 -- --------------------------------------------------------
 
@@ -876,7 +922,12 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (57, '2026_11_03_103025_update_product_prices_unique_constraint', 16),
 (58, '2026_11_03_120001_add_is_base_unit_to_product_units', 17),
 (59, '2026_11_03_120135_migrate_existing_product_base_units', 18),
-(60, '2026_11_03_120654_remove_base_unit_id_from_products_table', 19);
+(60, '2026_11_03_120654_remove_base_unit_id_from_products_table', 19),
+(61, '2026_11_04_055344_remove_columns_from_suppliers_table', 20),
+(62, '2026_11_04_072309_add_rejection_fields_to_purchase_requests_table', 21),
+(64, '2026_11_04_074915_add_cancelation_fields_to_purchase_requests_table', 22),
+(66, '2026_11_04_095705_create_audit_logs_table', 23),
+(67, '2026_11_05_110108_add_purchase_request_item_id_to_purchase_order_items_table', 24);
 
 -- --------------------------------------------------------
 
@@ -2184,7 +2235,7 @@ CREATE TABLE `personal_access_tokens` (
 --
 
 INSERT INTO `personal_access_tokens` (`id`, `tokenable_type`, `tokenable_id`, `name`, `token`, `abilities`, `last_used_at`, `expires_at`, `created_at`, `updated_at`) VALUES
-(2, 'App\\Models\\User', '01a1a00d-2379-720c-b2e7-38fb42cc1dd8', 'erp-auth-token', 'a0c9fd9fa36059b4c54f5d692b06e9c5c22d3b272a9f565a358b51bc2fb31956', '[\"*\"]', '2026-11-03 08:06:42', NULL, '2026-11-03 02:11:51', '2026-11-03 08:06:42');
+(2, 'App\\Models\\User', '01a1a00d-2379-720c-b2e7-38fb42cc1dd8', 'erp-auth-token', 'a0c9fd9fa36059b4c54f5d692b06e9c5c22d3b272a9f565a358b51bc2fb31956', '[\"*\"]', '2026-11-05 07:56:35', NULL, '2026-11-03 02:11:51', '2026-11-05 07:56:35');
 
 -- --------------------------------------------------------
 
@@ -2238,7 +2289,7 @@ CREATE TABLE `product_prices` (
 
 INSERT INTO `product_prices` (`id`, `product_unit_id`, `price_type`, `price`, `minimum_quantity`, `effective_from`, `status`, `created_at`, `updated_at`) VALUES
 ('01a1a183-d57e-70b1-a685-6dff535ec1ac', '01a1a167-6cb6-72e0-b85c-aab21d99a8fa', 'retail', 550.00, 1.00, '2026-11-03', 'active', '2026-11-03 08:05:34', '2026-11-03 08:05:34'),
-('01a1a184-ca1f-7183-8c7c-38771ae45284', '01a1a167-6cb6-72e0-b85c-aab21d99a8fa', 'retail', 540.00, 10.00, '2026-11-03', 'active', '2026-11-03 08:06:36', '2026-11-03 08:06:36');
+('01a1a184-ca1f-7183-8c7c-38771ae45284', '01a1a167-6cb6-72e0-b85c-aab21d99a8fa', 'retail', 535.00, 10.00, '2026-11-03', 'active', '2026-11-03 08:06:36', '2026-11-03 23:48:43');
 
 -- --------------------------------------------------------
 
@@ -2296,6 +2347,13 @@ CREATE TABLE `purchase_orders` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `purchase_orders`
+--
+
+INSERT INTO `purchase_orders` (`id`, `supplier_id`, `branch_id`, `warehouse_id`, `purchase_request_id`, `order_number`, `order_date`, `expected_date`, `status`, `currency`, `subtotal`, `discount_amount`, `tax_amount`, `total_amount`, `notes`, `created_by`, `approved_by`, `approved_at`, `created_at`, `updated_at`) VALUES
+('01a1ab93-207e-732d-9e12-3696e93b683a', '01a1a534-b1d6-727a-a179-8be41846384c', '01a1a009-5ce4-7307-b010-33d1406552a6', '01a1a009-5ce8-73c5-89dd-881e9a53222e', '01a1a55a-cad9-7186-ab55-e7e1c6f6ca6e', 'PO-0001', '2026-11-05', '2026-11-20', 'approved', 'PKR', 88000.00, 0.00, 180.00, 88180.00, 'Updated test purchase order', '01a1a00d-2379-720c-b2e7-38fb42cc1dd8', '01a1a00d-2379-720c-b2e7-38fb42cc1dd8', '2026-11-05 07:14:06', '2026-11-05 06:58:28', '2026-11-05 07:22:12');
+
 -- --------------------------------------------------------
 
 --
@@ -2305,6 +2363,7 @@ CREATE TABLE `purchase_orders` (
 CREATE TABLE `purchase_order_items` (
   `id` char(36) NOT NULL,
   `purchase_order_id` char(36) NOT NULL,
+  `purchase_request_item_id` char(36) DEFAULT NULL,
   `product_id` char(36) NOT NULL,
   `unit_id` char(36) NOT NULL,
   `quantity` decimal(20,8) NOT NULL,
@@ -2319,6 +2378,13 @@ CREATE TABLE `purchase_order_items` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `purchase_order_items`
+--
+
+INSERT INTO `purchase_order_items` (`id`, `purchase_order_id`, `purchase_request_item_id`, `product_id`, `unit_id`, `quantity`, `conversion_factor`, `base_quantity`, `received_quantity`, `unit_cost`, `discount_amount`, `tax_amount`, `total_amount`, `notes`, `created_at`, `updated_at`) VALUES
+('01a1ab9c-b58b-7097-851d-3c9439f8c09f', '01a1ab93-207e-732d-9e12-3696e93b683a', '01a1a55c-46bb-7299-b43e-f95bdbca2b79', '01a1a167-6cb0-7180-a2fd-bacd940de08c', '01a1a168-03ca-7336-a4fa-8929c05cb80b', 40.00000000, 5.00000000, 200.00000000, 0.00000000, 2200.00, 0.00, 180.00, 88180.00, 'Updated test item', '2026-11-05 07:08:56', '2026-11-05 07:08:56');
 
 -- --------------------------------------------------------
 
@@ -2339,9 +2405,22 @@ CREATE TABLE `purchase_requests` (
   `requested_by` char(36) DEFAULT NULL,
   `approved_by` char(36) DEFAULT NULL,
   `approved_at` timestamp NULL DEFAULT NULL,
+  `rejected_by` char(36) DEFAULT NULL,
+  `rejected_at` timestamp NULL DEFAULT NULL,
+  `rejection_reason` text DEFAULT NULL,
+  `canceled_by` char(36) DEFAULT NULL,
+  `canceled_at` timestamp NULL DEFAULT NULL,
+  `cancellation_reason` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `purchase_requests`
+--
+
+INSERT INTO `purchase_requests` (`id`, `branch_id`, `warehouse_id`, `request_number`, `request_date`, `required_date`, `priority`, `status`, `notes`, `requested_by`, `approved_by`, `approved_at`, `rejected_by`, `rejected_at`, `rejection_reason`, `canceled_by`, `canceled_at`, `cancellation_reason`, `created_at`, `updated_at`) VALUES
+('01a1a55a-cad9-7186-ab55-e7e1c6f6ca6e', '01a1a009-5ce4-7307-b010-33d1406552a6', NULL, 'PR-001', '2026-11-04', '2026-11-10', 'normal', 'approved', 'Initial purchase request', '01a1a00d-2379-720c-b2e7-38fb42cc1dd8', '01a1a00d-2379-720c-b2e7-38fb42cc1dd8', '2026-11-05 06:39:59', NULL, NULL, NULL, NULL, NULL, NULL, '2026-11-04 01:59:13', '2026-11-05 06:39:59');
 
 -- --------------------------------------------------------
 
@@ -2359,6 +2438,13 @@ CREATE TABLE `purchase_request_items` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `purchase_request_items`
+--
+
+INSERT INTO `purchase_request_items` (`id`, `purchase_request_id`, `product_id`, `unit_id`, `quantity`, `notes`, `created_at`, `updated_at`) VALUES
+('01a1a55c-46bb-7299-b43e-f95bdbca2b79', '01a1a55a-cad9-7186-ab55-e7e1c6f6ca6e', '01a1a167-6cb0-7180-a2fd-bacd940de08c', '01a1a168-03ca-7336-a4fa-8929c05cb80b', 50.00000000, NULL, '2026-11-04 02:00:50', '2026-11-04 02:00:50');
 
 -- --------------------------------------------------------
 
@@ -2836,15 +2922,19 @@ CREATE TABLE `suppliers` (
   `phone` varchar(255) DEFAULT NULL,
   `tax_number` varchar(255) DEFAULT NULL,
   `website` varchar(255) DEFAULT NULL,
-  `address` text DEFAULT NULL,
-  `city` varchar(255) DEFAULT NULL,
-  `country` varchar(255) DEFAULT NULL,
   `opening_balance` decimal(15,2) NOT NULL DEFAULT 0.00,
   `status` varchar(255) NOT NULL DEFAULT 'active',
   `notes` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `suppliers`
+--
+
+INSERT INTO `suppliers` (`id`, `company_id`, `supplier_code`, `name`, `email`, `phone`, `tax_number`, `website`, `opening_balance`, `status`, `notes`, `created_at`, `updated_at`) VALUES
+('01a1a534-b1d6-727a-a179-8be41846384c', '01a1a009-5ccb-7270-814b-95288da5b942', 'SUP-001', 'Michael Erassmus', NULL, '+13339876678', NULL, NULL, 0.00, 'active', NULL, '2026-11-04 01:17:36', '2026-11-04 01:17:36');
 
 -- --------------------------------------------------------
 
@@ -2868,6 +2958,13 @@ CREATE TABLE `supplier_addresses` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `supplier_addresses`
+--
+
+INSERT INTO `supplier_addresses` (`id`, `supplier_id`, `type`, `contact_person`, `phone`, `address_line_1`, `address_line_2`, `city`, `state`, `postal_code`, `country`, `is_default`, `created_at`, `updated_at`) VALUES
+('01a1a534-b1de-7218-8dee-3c2fbdcd1ebf', '01a1a534-b1d6-727a-a179-8be41846384c', 'both', NULL, '+13339876678', '2043 Pleasant Valley Drive, Newark, NJ 07106', '192 Walnut Run, Newark, NJ 07103', 'Newark', 'New Jersey', '07106', 'USA', 1, '2026-11-04 01:17:36', '2026-11-04 01:24:14');
 
 -- --------------------------------------------------------
 
@@ -3112,6 +3209,17 @@ ALTER TABLE `accounting_periods`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ap_fy_period_uq` (`fiscal_year_id`,`period_number`),
   ADD KEY `ap_fy_status_idx` (`fiscal_year_id`,`status`);
+
+--
+-- Indexes for table `audit_logs`
+--
+ALTER TABLE `audit_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `audit_logs_actor_type_actor_id_index` (`actor_type`,`actor_id`),
+  ADD KEY `audit_logs_auditable_type_auditable_id_index` (`auditable_type`,`auditable_id`),
+  ADD KEY `audit_company_created_index` (`company_id`,`created_at`),
+  ADD KEY `audit_branch_created_index` (`branch_id`,`created_at`),
+  ADD KEY `audit_action_created_index` (`action`,`created_at`);
 
 --
 -- Indexes for table `branches`
@@ -3512,7 +3620,8 @@ ALTER TABLE `purchase_order_items`
   ADD PRIMARY KEY (`id`),
   ADD KEY `purchase_order_items_purchase_order_id_foreign` (`purchase_order_id`),
   ADD KEY `purchase_order_items_product_id_foreign` (`product_id`),
-  ADD KEY `purchase_order_items_unit_id_foreign` (`unit_id`);
+  ADD KEY `purchase_order_items_unit_id_foreign` (`unit_id`),
+  ADD KEY `purchase_order_items_purchase_request_item_id_foreign` (`purchase_request_item_id`);
 
 --
 -- Indexes for table `purchase_requests`
@@ -3522,7 +3631,9 @@ ALTER TABLE `purchase_requests`
   ADD UNIQUE KEY `purchase_request_number_unique` (`branch_id`,`request_number`),
   ADD KEY `purchase_requests_warehouse_id_foreign` (`warehouse_id`),
   ADD KEY `purchase_requests_requested_by_foreign` (`requested_by`),
-  ADD KEY `purchase_requests_approved_by_foreign` (`approved_by`);
+  ADD KEY `purchase_requests_approved_by_foreign` (`approved_by`),
+  ADD KEY `purchase_requests_rejected_by_foreign` (`rejected_by`),
+  ADD KEY `purchase_requests_canceled_by_foreign` (`canceled_by`);
 
 --
 -- Indexes for table `purchase_request_items`
@@ -3848,7 +3959,7 @@ ALTER TABLE `jobs`
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
 
 --
 -- AUTO_INCREMENT for table `personal_access_tokens`
@@ -4148,6 +4259,7 @@ ALTER TABLE `purchase_orders`
 ALTER TABLE `purchase_order_items`
   ADD CONSTRAINT `purchase_order_items_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
   ADD CONSTRAINT `purchase_order_items_purchase_order_id_foreign` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `purchase_order_items_purchase_request_item_id_foreign` FOREIGN KEY (`purchase_request_item_id`) REFERENCES `purchase_request_items` (`id`),
   ADD CONSTRAINT `purchase_order_items_unit_id_foreign` FOREIGN KEY (`unit_id`) REFERENCES `units` (`id`);
 
 --
@@ -4156,6 +4268,8 @@ ALTER TABLE `purchase_order_items`
 ALTER TABLE `purchase_requests`
   ADD CONSTRAINT `purchase_requests_approved_by_foreign` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `purchase_requests_branch_id_foreign` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
+  ADD CONSTRAINT `purchase_requests_canceled_by_foreign` FOREIGN KEY (`canceled_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `purchase_requests_rejected_by_foreign` FOREIGN KEY (`rejected_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `purchase_requests_requested_by_foreign` FOREIGN KEY (`requested_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `purchase_requests_warehouse_id_foreign` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses` (`id`) ON DELETE SET NULL;
 
