@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Purchasing\GoodsReceiptController;
 use App\Http\Controllers\Api\Purchasing\PurchaseOrderController;
 use App\Http\Controllers\Api\Purchasing\PurchaseRequestController;
 use Illuminate\Support\Facades\Route;
@@ -52,5 +53,18 @@ Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
 
     Route::post('/{id}/cancel', [PurchaseOrderController::class, 'cancel'])
         ->middleware('permission:purchase_orders.cancel');
+
+});
+
+Route::prefix('goods-receipts')->name('goods-receipts.')->group(function () {
+
+    Route::get('/', [GoodsReceiptController::class, 'index'])
+        ->middleware('permission:goods_receipts.view');
+
+    Route::post('/', [GoodsReceiptController::class, 'store'])
+        ->middleware('permission:goods_receipts.create');
+
+    Route::get('/{id}', [GoodsReceiptController::class, 'show'])
+        ->middleware('permission:goods_receipts.view');
 
 });
