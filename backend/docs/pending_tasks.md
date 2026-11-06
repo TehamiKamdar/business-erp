@@ -13,18 +13,6 @@
 - [ ] Close PO
 - [ ] PDF generation (React frontend phase)
 
-### Goods Receipt Note (GRN)
-- [ ] GRN database review
-- [ ] GRN model and relationships review
-- [ ] GRN creation API
-- [ ] GRN items management
-- [ ] GRN submission
-- [ ] GRN posting
-- [ ] Stock balance update
-- [ ] Stock movement creation
-- [ ] PO received quantity update
-- [ ] PO status update (partially_received / received)
-
 ## 2. Future Improvements
 
 - [ ] Centralized AuditService integration across all modules
@@ -32,6 +20,7 @@
 - [ ] PDF generation through React frontend
 - [ ] Excel/CSV exports
 - [ ] Print functionality
+- [ ] Numbers to generate automatically
 
 ## 3. Future Modules
 

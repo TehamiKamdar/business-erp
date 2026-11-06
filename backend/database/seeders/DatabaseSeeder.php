@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             CompanySeeder::class,
             RoleSeeder::class,
             DemoAdminSeeder::class,
+            WarehouseSeeder::class,
         ]);
     }
 }

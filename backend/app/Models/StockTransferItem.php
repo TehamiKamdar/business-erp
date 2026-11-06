@@ -13,6 +13,8 @@ class StockTransferItem extends Model
         'stock_transfer_id',
         'product_id',
         'unit_id',
+        'conversion_factor',
+        'base_quantity',
         'requested_quantity',
         'dispatched_quantity',
         'received_quantity',
@@ -25,6 +27,8 @@ class StockTransferItem extends Model
             'requested_quantity' => 'decimal:8',
             'dispatched_quantity' => 'decimal:8',
             'received_quantity' => 'decimal:8',
+            'conversion_factor' => 'decimal:8',
+            'base_quantity' => 'decimal:8',
         ];
     }
 
