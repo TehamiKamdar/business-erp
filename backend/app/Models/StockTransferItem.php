@@ -42,4 +42,12 @@ class StockTransferItem extends Model
     {
         return $this->belongsTo(Unit::class);
     }
+
+    public function receiptItems()
+    {
+        return $this->hasMany(
+            StockTransferReceiptItem::class,
+            'stock_transfer_item_id'
+        );
+    }
 }

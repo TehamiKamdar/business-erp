@@ -59,4 +59,9 @@ class StockTransfer extends Model
     {
         return $this->belongsTo(User::class, 'received_by');
     }
+
+    public function receipts()
+    {
+        return $this->hasMany(StockTransferReceipt::class);
+    }
 }
