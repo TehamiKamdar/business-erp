@@ -7,9 +7,12 @@ use App\Models\GoodsReceipt;
 use App\Models\GoodsReceiptItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\StockBalance;
+use App\Models\StockMovement;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class GoodsReceiptController extends Controller
@@ -685,4 +688,391 @@ class GoodsReceiptController extends Controller
         });
     }
 
+    public function post($id)
+    {
+        return DB::transaction(function () use ($id) {
+
+            // 1. Find and lock GRN within user's company and accessible branches.
+            $goodsReceipt = GoodsReceipt::whereHas(
+                'purchaseOrder.branch',
+                function ($query) {
+                    $query->where('company_id', $this->companyId())
+                        ->whereIn(
+                            'branches.id',
+                            auth()->user()->branches()->select('branches.id')
+                        );
+                }
+            )
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            if ($goodsReceipt->status !== 'draft') {
+                abort(422, 'Only draft goods receipts can be posted.');
+            }
+
+            // 2. Lock linked purchase order.
+            $purchaseOrder = PurchaseOrder::whereHas('branch', function ($query) {
+                $query->where('company_id', $this->companyId());
+            })
+                ->lockForUpdate()
+                ->findOrFail($goodsReceipt->purchase_order_id);
+
+            if (!$this->accessibleBranch($purchaseOrder->branch_id)) {
+                abort(403, 'You do not have access to this purchase order.');
+            }
+
+            if (!in_array($purchaseOrder->status, [
+                'approved',
+                'partially_received',
+            ])) {
+                abort(422, 'This purchase order is not available for receiving.');
+            }
+
+            if ($goodsReceipt->warehouse_id !== $purchaseOrder->warehouse_id) {
+                abort(422, 'Goods receipt warehouse does not match purchase order warehouse.');
+            }
+
+            // 3. Get active GRN items.
+            $receiptItems = $goodsReceipt->items()
+                ->where('is_removed', false)
+                ->lockForUpdate()
+                ->get();
+
+            if ($receiptItems->isEmpty()) {
+                abort(422, 'Cannot post a goods receipt without active items.');
+            }
+
+            // 4. Lock all related PO items.
+            $poItemIds = $receiptItems
+                ->pluck('purchase_order_item_id')
+                ->unique()
+                ->values();
+
+            $purchaseOrderItems = PurchaseOrderItem::where(
+                'purchase_order_id',
+                $purchaseOrder->id
+            )
+                ->whereIn('id', $poItemIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            if ($purchaseOrderItems->count() !== $poItemIds->count()) {
+                abort(422, 'One or more GRN items do not belong to this purchase order.');
+            }
+
+            $audit = app(AuditService::class);
+            $companyId = $this->companyId();
+            $branchId = $purchaseOrder->branch_id;
+
+            // 5. Process each GRN item.
+            foreach ($receiptItems as $receiptItem) {
+
+                $purchaseOrderItem = $purchaseOrderItems->get(
+                    $receiptItem->purchase_order_item_id
+                );
+
+                if (!$purchaseOrderItem) {
+                    abort(422, 'Invalid purchase order item.');
+                }
+
+                if (
+                    $receiptItem->product_id !== $purchaseOrderItem->product_id ||
+                    $receiptItem->unit_id !== $purchaseOrderItem->unit_id
+                ) {
+                    abort(422, 'GRN item product or unit does not match purchase order item.');
+                }
+
+                $receivedQuantity = (float) $receiptItem->received_quantity;
+                $baseQuantity = (float) $receiptItem->base_quantity;
+                $grnConversionFactor = (float) $receiptItem->conversion_factor;
+                $poConversionFactor = (float) $purchaseOrderItem->conversion_factor;
+
+                if (
+                    $receivedQuantity <= 0 ||
+                    $baseQuantity <= 0 ||
+                    $grnConversionFactor <= 0 ||
+                    $poConversionFactor <= 0
+                ) {
+                    abort(422, 'Invalid quantity or conversion factor found in GRN.');
+                }
+
+                // 6. Check remaining PO quantity.
+                // Exclude current GRN because it is being posted now.
+                $otherDraftReservedQuantity = (float) GoodsReceiptItem::whereHas(
+                    'goodsReceipt',
+                    function ($query) use ($goodsReceipt) {
+                        $query->where('status', 'draft')
+                            ->where('id', '!=', $goodsReceipt->id);
+                    }
+                )
+                    ->where('purchase_order_item_id', $purchaseOrderItem->id)
+                    ->where('is_removed', false)
+                    ->sum('received_quantity');
+
+                $postedQuantity = (float) $purchaseOrderItem->received_quantity;
+
+                $remainingQuantity =
+                    (float) $purchaseOrderItem->quantity
+                    - $postedQuantity
+                    - $otherDraftReservedQuantity;
+
+                if ($receivedQuantity > $remainingQuantity + 0.00000001) {
+                    abort(
+                        422,
+                        "Received quantity exceeds remaining quantity for product ID: {$purchaseOrderItem->product_id}. Remaining quantity: {$remainingQuantity}"
+                    );
+                }
+
+                // 7. Get or create stock balance safely using unique constraint.
+                $now = now();
+
+                DB::table('stock_balances')->insertOrIgnore([
+                    'id' => (string) Str::uuid(),
+                    'warehouse_id' => $goodsReceipt->warehouse_id,
+                    'product_id' => $receiptItem->product_id,
+                    'on_hand_quantity' => 0,
+                    'reserved_quantity' => 0,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+
+                $stockBalance = StockBalance::where(
+                    'warehouse_id',
+                    $goodsReceipt->warehouse_id
+                )
+                    ->where('product_id', $receiptItem->product_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $oldBalance = (float) $stockBalance->on_hand_quantity;
+                $newBalance = $oldBalance + $baseQuantity;
+
+                // 8. Update stock balance.
+                $oldBalanceValues = [
+                    'on_hand_quantity' => $stockBalance->on_hand_quantity,
+                    'reserved_quantity' => $stockBalance->reserved_quantity,
+                ];
+
+                $stockBalance->on_hand_quantity = $newBalance;
+                $stockBalance->save();
+
+                $audit->log(
+                    $stockBalance,
+                    'updated',
+                    $oldBalanceValues,
+                    [
+                        'on_hand_quantity' => $stockBalance->on_hand_quantity,
+                        'reserved_quantity' => $stockBalance->reserved_quantity,
+                    ],
+                    'Stock balance updated through goods receipt posting.',
+                    ['goods_receipt_id' => $goodsReceipt->id],
+                    auth()->user(),
+                    $companyId,
+                    $branchId
+                );
+
+                // 9. Create stock movement.
+                $movement = new StockMovement();
+
+                $movement->forceFill([
+                    'warehouse_id' => $goodsReceipt->warehouse_id,
+                    'product_id' => $receiptItem->product_id,
+                    'unit_id' => $receiptItem->unit_id,
+                    'movement_type' => 'purchase',
+                    'direction' => 'in',
+                    'quantity' => $receivedQuantity,
+                    'conversion_factor' => $grnConversionFactor,
+                    'base_quantity' => $baseQuantity,
+                    'balance_after' => $newBalance,
+                    'reference_type' => $goodsReceipt->getMorphClass(),
+                    'reference_id' => $goodsReceipt->id,
+                    'notes' => $receiptItem->notes,
+                    'created_by' => auth()->id(),
+                    'created_at' => $now,
+                ]);
+
+                $movement->save();
+
+                $audit->log(
+                    $movement,
+                    'created',
+                    null,
+                    [
+                        'movement_type' => 'purchase',
+                        'direction' => 'in',
+                        'quantity' => $receivedQuantity,
+                        'base_quantity' => $baseQuantity,
+                        'balance_after' => $newBalance,
+                        'reference_id' => $goodsReceipt->id,
+                    ],
+                    'Purchase stock movement created through goods receipt.',
+                    [],
+                    auth()->user(),
+                    $companyId,
+                    $branchId
+                );
+
+                // 10. Update PO received quantity in PO unit.
+                $receivedPoQuantity = $baseQuantity / $poConversionFactor;
+
+                $oldPoReceivedQuantity = $purchaseOrderItem->received_quantity;
+
+                $purchaseOrderItem->received_quantity =
+                    $postedQuantity + $receivedPoQuantity;
+
+                $purchaseOrderItem->save();
+
+                $audit->log(
+                    $purchaseOrderItem,
+                    'updated',
+                    [
+                        'received_quantity' => $oldPoReceivedQuantity,
+                    ],
+                    [
+                        'received_quantity' => $purchaseOrderItem->received_quantity,
+                    ],
+                    'Purchase order received quantity updated through goods receipt.',
+                    ['goods_receipt_id' => $goodsReceipt->id],
+                    auth()->user(),
+                    $companyId,
+                    $branchId
+                );
+            }
+
+            // 11. Update purchase order status.
+            $hasPendingItems = PurchaseOrderItem::where(
+                'purchase_order_id',
+                $purchaseOrder->id
+            )
+                ->whereRaw('received_quantity < quantity')
+                ->exists();
+
+            $oldPoStatus = $purchaseOrder->status;
+
+            $purchaseOrder->status = $hasPendingItems
+                ? 'partially_received'
+                : 'received';
+
+            if ($oldPoStatus !== $purchaseOrder->status) {
+                $purchaseOrder->save();
+
+                $audit->log(
+                    $purchaseOrder,
+                    'updated',
+                    ['status' => $oldPoStatus],
+                    ['status' => $purchaseOrder->status],
+                    'Purchase order status updated through goods receipt posting.',
+                    ['goods_receipt_id' => $goodsReceipt->id],
+                    auth()->user(),
+                    $companyId,
+                    $branchId
+                );
+            }
+
+            // 12. Mark GRN as posted.
+            $oldGrnStatus = $goodsReceipt->status;
+
+            $goodsReceipt->status = 'posted';
+            $goodsReceipt->posted_at = now();
+            $goodsReceipt->save();
+
+            $audit->log(
+                $goodsReceipt,
+                'posted',
+                [
+                    'status' => $oldGrnStatus,
+                    'posted_at' => null,
+                ],
+                [
+                    'status' => $goodsReceipt->status,
+                    'posted_at' => $goodsReceipt->posted_at,
+                ],
+                'Goods receipt posted and stock updated.',
+                [
+                    'purchase_order_id' => $purchaseOrder->id,
+                    'items_count' => $receiptItems->count(),
+                ],
+                auth()->user(),
+                $companyId,
+                $branchId
+            );
+
+            return response()->json([
+                'message' => 'Goods receipt posted successfully. Stock has been updated.',
+                'data' => $goodsReceipt->fresh()->load([
+                    'purchaseOrder.supplier',
+                    'purchaseOrder.branch',
+                    'warehouse',
+                    'receiver',
+                    'items.product',
+                    'items.unit',
+                    'items.purchaseOrderItem',
+                ]),
+            ]);
+        });
+    }
+
+    public function cancel($id)
+    {
+        return DB::transaction(function () use ($id) {
+
+            $goodsReceipt = GoodsReceipt::whereHas(
+                'purchaseOrder.branch',
+                function ($query) {
+                    $query->where('company_id', $this->companyId())
+                        ->whereIn(
+                            'branches.id',
+                            auth()->user()->branches()->select('branches.id')
+                        );
+                }
+            )
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            if ($goodsReceipt->status !== 'draft') {
+                abort(422, 'Only draft goods receipts can be cancelled.');
+            }
+
+            $purchaseOrder = PurchaseOrder::findOrFail(
+                $goodsReceipt->purchase_order_id
+            );
+
+            if (!$this->accessibleBranch($purchaseOrder->branch_id)) {
+                abort(403, 'You do not have access to this purchase order.');
+            }
+
+            $oldStatus = $goodsReceipt->status;
+
+            $goodsReceipt->status = 'cancelled';
+            $goodsReceipt->save();
+
+            app(AuditService::class)->log(
+                $goodsReceipt,
+                'cancelled',
+                ['status' => $oldStatus],
+                ['status' => $goodsReceipt->status],
+                'Goods receipt cancelled.',
+                [
+                    'purchase_order_id' => $purchaseOrder->id,
+                ],
+                auth()->user(),
+                $this->companyId(),
+                $purchaseOrder->branch_id
+            );
+
+            return response()->json([
+                'message' => 'Goods receipt cancelled successfully.',
+                'data' => $goodsReceipt->fresh()->load([
+                    'purchaseOrder.supplier',
+                    'purchaseOrder.branch',
+                    'warehouse',
+                    'receiver',
+                    'items.product',
+                    'items.unit',
+                    'items.purchaseOrderItem',
+                ]),
+            ]);
+        });
+    }
 }

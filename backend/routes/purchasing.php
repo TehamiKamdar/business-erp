@@ -73,4 +73,10 @@ Route::prefix('goods-receipts')->name('goods-receipts.')->group(function () {
     Route::patch('/{id}', [GoodsReceiptController::class, 'update'])
         ->middleware('permission:goods_receipts.edit');
 
+    Route::post('/{id}/post', [GoodsReceiptController::class, 'post'])
+        ->middleware('permission:goods_receipts.edit');
+
+    Route::post('/{id}/cancel', [GoodsReceiptController::class, 'cancel'])
+        ->middleware('permission:goods_receipts.edit');
+        
 });
