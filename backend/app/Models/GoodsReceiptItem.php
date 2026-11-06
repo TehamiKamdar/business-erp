@@ -18,6 +18,7 @@ class GoodsReceiptItem extends Model
         'conversion_factor',
         'base_quantity',
         'unit_cost',
+        'is_removed',
         'notes',
     ];
 
@@ -28,6 +29,7 @@ class GoodsReceiptItem extends Model
             'conversion_factor' => 'decimal:8',
             'base_quantity' => 'decimal:8',
             'unit_cost' => 'decimal:2',
+            'is_removed' => 'boolean',
         ];
     }
 

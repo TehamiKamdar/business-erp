@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\Purchasing;
 
 use App\Http\Controllers\Controller;
 use App\Models\GoodsReceipt;
+use App\Models\GoodsReceiptItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class GoodsReceiptController extends Controller
 {
@@ -179,13 +181,26 @@ class GoodsReceiptController extends Controller
                     abort(422, 'One or more selected items do not belong to this purchase order.');
                 }
 
+                $postedQuantity = (float) $purchaseOrderItem->received_quantity;
+
+                $draftReservedQuantity = (float) GoodsReceiptItem::whereHas(
+                    'goodsReceipt',
+                    function ($query) {
+                        $query->where('status', 'draft');
+                    }
+                )
+                    ->where('purchase_order_item_id', $purchaseOrderItem->id)
+                    ->where('is_removed', false)
+                    ->sum('received_quantity');
+
                 $remainingQuantity = (float) $purchaseOrderItem->quantity
-                    - (float) $purchaseOrderItem->received_quantity;
+                    - $postedQuantity
+                    - $draftReservedQuantity;
 
                 if ((float) $item['received_quantity'] > $remainingQuantity) {
                     abort(
                         422,
-                        "Received quantity exceeds remaining quantity for product ID: {$purchaseOrderItem->product_id}"
+                        "Received quantity exceeds remaining quantity for product: {$purchaseOrderItem->product->name}. Remaining quantity: {$remainingQuantity}"
                     );
                 }
 
@@ -289,4 +304,385 @@ class GoodsReceiptController extends Controller
             'data' => $goodsReceipt,
         ]);
     }
+
+    
+    public function update(Request $request, $id)
+    {
+        $goodsReceipt = GoodsReceipt::whereHas('purchaseOrder.branch', function ($query) {
+            $query->where('company_id', $this->companyId());
+        })->findOrFail($id);
+
+        if (!$this->accessibleBranch($goodsReceipt->purchaseOrder->branch_id)) {
+            abort(403, 'You do not have access to this goods receipt.');
+        }
+
+        if ($goodsReceipt->status !== 'draft') {
+            abort(422, 'Only draft goods receipts can be updated.');
+        }
+
+        $validated = $request->validate([
+            'receipt_number' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('goods_receipts', 'receipt_number')
+                    ->where('warehouse_id', $goodsReceipt->warehouse_id)
+                    ->ignore($goodsReceipt->id),
+            ],
+
+            'receipt_date' => [
+                'sometimes',
+                'required',
+                'date',
+            ],
+
+            'supplier_delivery_number' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            'notes' => [
+                'sometimes',
+                'nullable',
+                'string',
+            ],
+
+            'items' => [
+                'sometimes',
+                'required',
+                'array',
+                'min:1',
+            ],
+
+            'items.*.id' => [
+                'sometimes',
+                'nullable',
+                'uuid',
+                'exists:goods_receipt_items,id',
+            ],
+
+            'items.*.purchase_order_item_id' => [
+                'required_with:items',
+                'uuid',
+                'distinct',
+                'exists:purchase_order_items,id',
+            ],
+
+            'items.*.received_quantity' => [
+                'required_with:items',
+                'numeric',
+                'gt:0',
+            ],
+
+            'items.*.notes' => [
+                'nullable',
+                'string',
+            ],
+        ]);
+
+        return DB::transaction(function () use ($validated, $goodsReceipt) {
+
+            $goodsReceipt = GoodsReceipt::whereKey($goodsReceipt->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($goodsReceipt->status !== 'draft') {
+                abort(422, 'Only draft goods receipts can be updated.');
+            }
+
+            $purchaseOrder = PurchaseOrder::whereKey($goodsReceipt->purchase_order_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (!$this->accessibleBranch($purchaseOrder->branch_id)) {
+                abort(403, 'You do not have access to this purchase order.');
+            }
+
+            if (!in_array($purchaseOrder->status, [
+                'approved',
+                'partially_received',
+            ])) {
+                abort(422, 'The linked purchase order is no longer available for goods receipt updates.');
+            }
+
+            $audit = app(AuditService::class);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update GRN Header
+            |--------------------------------------------------------------------------
+            */
+
+            $headerFields = [
+                'receipt_number',
+                'receipt_date',
+                'supplier_delivery_number',
+                'notes',
+            ];
+
+            $headerData = array_intersect_key(
+                $validated,
+                array_flip($headerFields)
+            );
+
+            if (!empty($headerData)) {
+
+                $goodsReceipt->fill($headerData);
+
+                $dirty = $goodsReceipt->getDirty();
+
+                if (!empty($dirty)) {
+
+                    $oldValues = [];
+
+                    foreach (array_keys($dirty) as $field) {
+                        $oldValues[$field] = $goodsReceipt->getRawOriginal($field);
+                    }
+
+                    $newValues = $dirty;
+
+                    $goodsReceipt->save();
+
+                    $audit->log(
+                        $goodsReceipt,
+                        'updated',
+                        $oldValues,
+                        $newValues,
+                        'Goods receipt header updated.',
+                        [],
+                        auth()->user(),
+                        $this->companyId(),
+                        $purchaseOrder->branch_id
+                    );
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update GRN Items
+            |--------------------------------------------------------------------------
+            */
+
+            if (array_key_exists('items', $validated)) {
+
+                $processedItemIds = [];
+
+                foreach ($validated['items'] as $item) {
+
+                    $purchaseOrderItem = PurchaseOrderItem::where(
+                        'purchase_order_id',
+                        $purchaseOrder->id
+                    )
+                        ->lockForUpdate()
+                        ->find($item['purchase_order_item_id']);
+
+                    if (!$purchaseOrderItem) {
+                        abort(422, 'Selected item does not belong to this purchase order.');
+                    }
+
+                    /*
+                    * Posted quantity already exists in PO item.
+                    */
+
+                    $postedQuantity = (float) $purchaseOrderItem->received_quantity;
+
+                    /*
+                    * Other draft GRNs reserve their quantities.
+                    * Current GRN is excluded because its quantity
+                    * is being replaced.
+                    */
+
+                    $otherDraftReservedQuantity = (float) GoodsReceiptItem::whereHas(
+                        'goodsReceipt',
+                        function ($query) use ($goodsReceipt) {
+                            $query->where('status', 'draft')
+                                ->where('id', '!=', $goodsReceipt->id);
+                        }
+                    )
+                        ->where('purchase_order_item_id', $purchaseOrderItem->id)
+                        ->where('is_removed', false)
+                        ->sum('received_quantity');
+
+                    $remainingQuantity = (float) $purchaseOrderItem->quantity
+                        - $postedQuantity
+                        - $otherDraftReservedQuantity;
+
+                    if ((float) $item['received_quantity'] > $remainingQuantity) {
+                        abort(
+                            422,
+                            "Received quantity exceeds remaining quantity for product ID: {$purchaseOrderItem->product_id}. Remaining quantity: {$remainingQuantity}"
+                        );
+                    }
+
+                    /*
+                    * Always derive product details from PO item.
+                    */
+
+                    $itemData = [
+                        'purchase_order_item_id' => $purchaseOrderItem->id,
+                        'product_id' => $purchaseOrderItem->product_id,
+                        'unit_id' => $purchaseOrderItem->unit_id,
+                        'received_quantity' => $item['received_quantity'],
+                        'conversion_factor' => $purchaseOrderItem->conversion_factor,
+                        'base_quantity' => (float) $item['received_quantity'] * (float) $purchaseOrderItem->conversion_factor,
+                        'unit_cost' => $purchaseOrderItem->unit_cost,
+                        'notes' => $item['notes'] ?? null,
+                        'is_removed' => false,
+                    ];
+
+                    /*
+                    * Find existing item by ID.
+                    */
+
+                    if (!empty($item['id'])) {
+
+                        $receiptItem = $goodsReceipt->items()
+                            ->lockForUpdate()
+                            ->find($item['id']);
+
+                        if (!$receiptItem) {
+                            abort(422, 'Selected GRN item does not belong to this goods receipt.');
+                        }
+
+                        if ($receiptItem->purchase_order_item_id !== $purchaseOrderItem->id) {
+                            abort(422, 'GRN item cannot be linked to a different purchase order item.');
+                        }
+
+                    } else {
+
+                        $receiptItem = $goodsReceipt->items()
+                            ->where('purchase_order_item_id', $purchaseOrderItem->id)
+                            ->lockForUpdate()
+                            ->first();
+                    }
+
+                    /*
+                    * Update existing item or create new item.
+                    */
+
+                    if ($receiptItem) {
+
+                        $oldValues = $receiptItem->only([
+                            'purchase_order_item_id',
+                            'product_id',
+                            'unit_id',
+                            'received_quantity',
+                            'conversion_factor',
+                            'base_quantity',
+                            'unit_cost',
+                            'notes',
+                            'is_removed',
+                        ]);
+
+                        $wasRemoved = (bool) $receiptItem->is_removed;
+
+                        $receiptItem->fill($itemData);
+
+                        $dirty = $receiptItem->getDirty();
+
+                        if (!empty($dirty)) {
+
+                            $newValues = [];
+
+                            foreach (array_keys($dirty) as $field) {
+                                $newValues[$field] = $receiptItem->getAttribute($field);
+                            }
+
+                            $receiptItem->save();
+
+                            $audit->log(
+                                $receiptItem,
+                                $wasRemoved ? 'restored' : 'updated',
+                                $oldValues,
+                                $newValues,
+                                $wasRemoved
+                                    ? 'Goods receipt item restored.'
+                                    : 'Goods receipt item updated.',
+                                [],
+                                auth()->user(),
+                                $this->companyId(),
+                                $purchaseOrder->branch_id
+                            );
+                        }
+
+                    } else {
+
+                        $receiptItem = $goodsReceipt->items()->create($itemData);
+
+                        $audit->log(
+                            $receiptItem,
+                            'created',
+                            null,
+                            $itemData,
+                            'New goods receipt item added.',
+                            [],
+                            auth()->user(),
+                            $this->companyId(),
+                            $purchaseOrder->branch_id
+                        );
+                    }
+
+                    $processedItemIds[] = $receiptItem->id;
+                }
+
+                /*
+                * Items missing from submitted array
+                * will be marked as removed.
+                */
+
+                $removedItems = $goodsReceipt->items()
+                    ->where('is_removed', false)
+                    ->whereNotIn('id', $processedItemIds)
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($removedItems as $removedItem) {
+
+                    $oldValues = $removedItem->only([
+                        'purchase_order_item_id',
+                        'product_id',
+                        'unit_id',
+                        'received_quantity',
+                        'conversion_factor',
+                        'base_quantity',
+                        'unit_cost',
+                        'notes',
+                        'is_removed',
+                    ]);
+
+                    $removedItem->update([
+                        'is_removed' => true,
+                    ]);
+
+                    $audit->log(
+                        $removedItem,
+                        'removed',
+                        $oldValues,
+                        ['is_removed' => true],
+                        'Goods receipt item removed from draft.',
+                        [],
+                        auth()->user(),
+                        $this->companyId(),
+                        $purchaseOrder->branch_id
+                    );
+                }
+            }
+
+            return response()->json([
+                'message' => 'Goods receipt updated successfully.',
+                'data' => $goodsReceipt->fresh()->load([
+                    'purchaseOrder.supplier',
+                    'warehouse',
+                    'receiver',
+                    'items.product',
+                    'items.unit',
+                    'items.purchaseOrderItem',
+                ]),
+            ]);
+        });
+    }
+
 }

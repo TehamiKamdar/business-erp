@@ -67,4 +67,10 @@ Route::prefix('goods-receipts')->name('goods-receipts.')->group(function () {
     Route::get('/{id}', [GoodsReceiptController::class, 'show'])
         ->middleware('permission:goods_receipts.view');
 
+    Route::put('/{id}', [GoodsReceiptController::class, 'update'])
+        ->middleware('permission:goods_receipts.edit');
+
+    Route::patch('/{id}', [GoodsReceiptController::class, 'update'])
+        ->middleware('permission:goods_receipts.edit');
+
 });
