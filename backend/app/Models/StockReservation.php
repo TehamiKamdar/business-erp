@@ -48,4 +48,15 @@ class StockReservation extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function salesOrder()
+    {
+        return $this->belongsTo(
+            SalesOrder::class,
+            'reference_id'
+        )->where(
+            'reference_type',
+            (new SalesOrder())->getMorphClass()
+        );
+    }
 }
