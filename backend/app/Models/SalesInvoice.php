@@ -84,4 +84,9 @@ class SalesInvoice extends Model
     {
         return $this->hasMany(CustomerPaymentAllocation::class);
     }
+
+    public function statusHistories()
+    {
+        return $this->hasMany(SalesInvoiceStatusHistory::class);
+    }
 }
