@@ -638,4 +638,87 @@ class SalesOrderController extends Controller
         });
     }
 
+    public function cancel(
+        Request $request,
+        string $salesOrderId,
+        AuditService $auditService,
+        StockReservationService $stockReservationService
+    ) {
+        $validated = $request->validate([
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $companyId = $this->companyId();
+
+        return DB::transaction(function () use (
+            $salesOrderId,
+            $validated,
+            $auditService,
+            $stockReservationService,
+            $companyId
+        ) {
+            $salesOrder = SalesOrder::query()
+                ->whereKey($salesOrderId)
+                ->whereHas('branch', function ($query) use ($companyId) {
+                    $query->where('company_id', $companyId)
+                        ->whereIn(
+                            'branches.id',
+                            auth()->user()->branches()
+                                ->select('branches.id')
+                        );
+                })
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (!in_array($salesOrder->status, ['draft', 'approved'])) {
+                throw ValidationException::withMessages([
+                    'status' => 'Only draft or approved sales orders can be cancelled.',
+                ]);
+            }
+
+            // Release stock reservations for approved orders.
+            if ($salesOrder->status === 'approved') {
+                $stockReservationService->releaseForSalesOrder($salesOrder);
+            }
+
+            $oldValues = [
+                'status' => $salesOrder->status,
+            ];
+
+            $oldStatus = $salesOrder->status;
+
+            $salesOrder->update([
+                'status' => 'cancelled',
+            ]);
+
+            SalesOrderStatusHistory::create([
+                'sales_order_id' => $salesOrder->id,
+                'old_status' => $oldStatus,
+                'new_status' => 'cancelled',
+                'changed_by' => auth()->id(),
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            $auditService->log(
+                $salesOrder,
+                'cancelled',
+                $oldValues,
+                ['status' => 'cancelled'],
+                'Sales order cancelled.',
+                [
+                    'notes' => $validated['notes'] ?? null,
+                ],
+                null,
+                $companyId,
+                $salesOrder->branch_id
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sales order cancelled successfully.',
+                'data' => $salesOrder->fresh(),
+            ]);
+        });
+    }
+
 }

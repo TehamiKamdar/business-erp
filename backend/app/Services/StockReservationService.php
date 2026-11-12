@@ -191,4 +191,109 @@ class StockReservationService
             }
         });
     }
+
+    public function releaseForSalesOrder(SalesOrder $salesOrder): void
+    {
+        DB::transaction(function () use ($salesOrder) {
+
+            $salesOrder = SalesOrder::query()
+                ->whereKey($salesOrder->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($salesOrder->status !== 'approved') {
+                throw ValidationException::withMessages([
+                    'status' => 'Only approved sales orders can release stock reservations.',
+                ]);
+            }
+
+            $companyId = $salesOrder->branch()->value('company_id');
+
+            $referenceType = $salesOrder->getMorphClass();
+
+            $reservations = StockReservation::query()
+                ->where('reference_type', $referenceType)
+                ->where('reference_id', $salesOrder->id)
+                ->where('warehouse_id', $salesOrder->warehouse_id)
+                ->where('status', 'active')
+                ->orderBy('product_id')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($reservations as $reservation) {
+
+                $balance = StockBalance::query()
+                    ->where('warehouse_id', $reservation->warehouse_id)
+                    ->where('product_id', $reservation->product_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$balance) {
+                    throw ValidationException::withMessages([
+                        'stock' => 'Stock balance not found for an active reservation.',
+                    ]);
+                }
+
+                $oldReservedQuantity = (float) $balance->reserved_quantity;
+
+                $releaseQuantity = (float) $reservation->quantity;
+
+                if ($oldReservedQuantity < $releaseQuantity) {
+                    throw ValidationException::withMessages([
+                        'stock' => 'Reserved stock quantity is inconsistent. Reservation cannot be released.',
+                    ]);
+                }
+
+                $newReservedQuantity = round(
+                    $oldReservedQuantity - $releaseQuantity,
+                    8
+                );
+
+                $balance->update([
+                    'reserved_quantity' => $newReservedQuantity,
+                ]);
+
+                $oldReservationValues = $reservation->getAttributes();
+
+                $reservation->update([
+                    'status' => 'released',
+                ]);
+
+                $this->auditService->log(
+                    $balance,
+                    'stock_reservation_released',
+                    [
+                        'reserved_quantity' => $oldReservedQuantity,
+                    ],
+                    [
+                        'reserved_quantity' => $newReservedQuantity,
+                    ],
+                    'Stock reservation released for Sales Order.',
+                    [
+                        'sales_order_id' => $salesOrder->id,
+                        'reservation_id' => $reservation->id,
+                        'released_quantity' => $releaseQuantity,
+                    ],
+                    null,
+                    $companyId,
+                    $salesOrder->branch_id
+                );
+
+                $this->auditService->log(
+                    $reservation,
+                    'released',
+                    $oldReservationValues,
+                    $reservation->getAttributes(),
+                    'Stock reservation released.',
+                    [
+                        'sales_order_id' => $salesOrder->id,
+                    ],
+                    null,
+                    $companyId,
+                    $salesOrder->branch_id
+                );
+            }
+        });
+    }
 }

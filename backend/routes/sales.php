@@ -19,4 +19,7 @@ Route::prefix('sales-orders')->group(function () {
 
     Route::post('/{salesOrderId}/reject', [SalesOrderController::class, 'reject'])
         ->middleware('permission:sales_orders.reject');
+
+    Route::post('/{salesOrderId}/cancel', [SalesOrderController::class, 'cancel'])
+        ->middleware('permission:sales_orders.cancel');
 });
