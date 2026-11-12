@@ -24,6 +24,8 @@ class SalesInvoice extends Model
         'total_amount',
         'paid_amount',
         'balance_amount',
+        'approved_by',
+        'approved_at',
         'notes',
         'created_by',
     ];
@@ -33,6 +35,7 @@ class SalesInvoice extends Model
         return [
             'invoice_date' => 'date',
             'due_date' => 'date',
+            'approved_at' => 'datetime',
             'subtotal' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'tax_amount' => 'decimal:2',
@@ -73,6 +76,11 @@ class SalesInvoice extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function salesReturns()

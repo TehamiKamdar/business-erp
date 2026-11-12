@@ -1,7 +1,8 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Sales\SalesInvoiceController;
 use App\Http\Controllers\Api\Sales\SalesOrderController;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('sales-orders')->group(function () {
 
@@ -22,4 +23,25 @@ Route::prefix('sales-orders')->group(function () {
 
     Route::post('/{salesOrderId}/cancel', [SalesOrderController::class, 'cancel'])
         ->middleware('permission:sales_orders.cancel');
+});
+
+Route::prefix('sales-invoices')->group(function () {
+    Route::get('/', [SalesInvoiceController::class, 'index'])
+        ->middleware('permission:sales_invoices.view');
+
+    Route::post('/', [SalesInvoiceController::class, 'store'])
+        ->middleware('permission:sales_invoices.create');
+
+    Route::get('/{id}', [SalesInvoiceController::class, 'show'])
+        ->middleware('permission:sales_invoices.view');
+
+        // This route to test later
+    Route::put('/{id}', [SalesInvoiceController::class, 'update'])
+        ->middleware('permission:sales_invoices.edit');
+
+    Route::post('/{id}/approve', [SalesInvoiceController::class, 'approve'])
+        ->middleware('permission:sales_invoices.approve');
+
+    Route::post('/{id}/cancel', [SalesInvoiceController::class, 'cancel'])
+        ->middleware('permission:sales_invoices.cancel');
 });
