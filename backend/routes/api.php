@@ -25,6 +25,7 @@ Route::middleware('auth:sanctum')->group(function () {
     require __DIR__ . '/purchasing.php';
     require __DIR__ . '/inventory.php';
     require __DIR__ . '/sales.php';
+    require __DIR__ . '/deliveries.php';
 
     // Test Routes
     Route::get('/test-permission', function () {
