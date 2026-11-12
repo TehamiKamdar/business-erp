@@ -77,17 +77,19 @@ class SupplierController extends Controller
                 'status' => 'active',
             ]);
 
-            $supplier->addresses()->create([
+            $addressData = [
                 'type' => 'both',
                 'phone' => $validated['phone'] ?? null,
                 'contact_person' => $validated['contact_person'] ?? null,
-                'address_line_1' => $validated['address'],
-                'city' => $validated['city'],
-                'country' => $validated['country'],
-                'state' => $validated['state'],
-                'postal_code' => $validated['postal_code'],
+                'address_line_1' => $validated['address'] ?? null,
+                'city' => $validated['city'] ?? null,
+                'country' => $validated['country'] ?? null,
+                'state' => $validated['state'] ?? null,
+                'postal_code' => $validated['postal_code'] ?? null,
                 'is_default' => true,
-            ]);
+            ];
+
+            $supplier->addresses()->create($addressData);
 
             return $supplier;
         });

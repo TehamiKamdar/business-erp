@@ -117,7 +117,7 @@ class ProductController extends Controller
                 'nullable',
                 'numeric',
                 'min:0',
-            ],
+            ]
         ]);
 
         $product = DB::transaction(function () use ($validated, $companyId) {

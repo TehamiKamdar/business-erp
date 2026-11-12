@@ -104,7 +104,6 @@ class PurchaseRequestController extends Controller
                 'max:255',
             ],
 
-            'request_date' => ['required', 'date'],
             'required_date' => ['nullable', 'date', 'after_or_equal:request_date'],
 
             'priority' => [
@@ -138,7 +137,7 @@ class PurchaseRequestController extends Controller
                 'branch_id' => $validated['branch_id'],
                 'warehouse_id' => $validated['warehouse_id'] ?? null,
                 'request_number' => $validated['request_number'],
-                'request_date' => $validated['request_date'],
+                'request_date' => $validated['request_date'] ?? now(),
                 'required_date' => $validated['required_date'] ?? null,
                 'priority' => $validated['priority'],
                 'status' => 'draft',
