@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Sales\CustomerPaymentController;
 use App\Http\Controllers\Api\Sales\CustomerPriceController;
 use App\Http\Controllers\Api\Sales\SalesInvoiceController;
 use App\Http\Controllers\Api\Sales\SalesOrderController;
@@ -64,4 +65,24 @@ Route::prefix('sales-invoices')->group(function () {
 
     Route::post('/{id}/cancel', [SalesInvoiceController::class, 'cancel'])
         ->middleware('permission:sales_invoices.cancel');
+});
+
+Route::prefix('customer-payments')->group(function () {
+    Route::get('/', [CustomerPaymentController::class, 'index'])
+        ->middleware('permission:customer_payments.view');
+
+    Route::post('/', [CustomerPaymentController::class, 'store'])
+        ->middleware('permission:customer_payments.create');
+
+    Route::get('/{paymentId}', [CustomerPaymentController::class, 'show'])
+        ->middleware('permission:customer_payments.view');
+
+    Route::put('/{paymentId}', [CustomerPaymentController::class, 'update'])
+        ->middleware('permission:customer_payments.edit');
+
+    Route::post('/{paymentId}/post', [CustomerPaymentController::class, 'post'])
+        ->middleware('permission:customer_payments.approve');
+
+    Route::post('/{paymentId}/cancel', [CustomerPaymentController::class, 'cancel'])
+        ->middleware('permission:customer_payments.cancel');
 });
