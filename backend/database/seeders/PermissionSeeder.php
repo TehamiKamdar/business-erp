@@ -395,6 +395,7 @@ class PermissionSeeder extends Seeder
             'sales_invoices',
             'customer_payments',
             'sales_returns',
+            'customer_prices'
         ];
 
         foreach ($salesDocuments as $resource) {
