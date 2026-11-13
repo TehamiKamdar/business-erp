@@ -27,7 +27,6 @@ class CustomerPrice extends Model
             'min_quantity' => 'decimal:8',
             'effective_from' => 'date',
             'effective_until' => 'date',
-            'status' => 'boolean',
         ];
     }
 

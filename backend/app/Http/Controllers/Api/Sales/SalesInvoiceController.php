@@ -78,7 +78,7 @@ class SalesInvoiceController extends Controller
             'data' => $invoices,
         ]);
     }
-
+    
     public function store(Request $request, AuditService $auditService)
     {
         $validated = $request->validate([
@@ -108,6 +108,7 @@ class SalesInvoiceController extends Controller
             $companyId,
             $auditService
         ) {
+
             // Lock and authorize selected deliveries
             $deliveries = Delivery::query()
                 ->whereIn('id', $validated['deliveries'])
@@ -132,6 +133,7 @@ class SalesInvoiceController extends Controller
             $firstDelivery = $deliveries->first();
             $firstOrder = $firstDelivery->salesOrder;
 
+            // Validate delivery status and common customer, branch and currency
             foreach ($deliveries as $delivery) {
 
                 if (!in_array($delivery->status, ['dispatched', 'delivered'])) {
@@ -230,13 +232,14 @@ class SalesInvoiceController extends Controller
                     8
                 );
 
-                $quantity = (float) $deliveryItem->quantity;
-
-                if ($quantity > $remainingQuantity) {
+                if ($remainingQuantity <= 0) {
                     throw ValidationException::withMessages([
-                        'items' => "Invoice quantity exceeds the uninvoiced quantity for delivery item {$deliveryItem->id}.",
+                        'items' => "Delivery item {$deliveryItem->id} has no remaining uninvoiced quantity.",
                     ]);
                 }
+
+                // Invoice remaining quantity automatically
+                $quantity = $remainingQuantity;
 
                 $conversionFactor = (float) $deliveryItem->conversion_factor;
 
@@ -306,7 +309,7 @@ class SalesInvoiceController extends Controller
             $totalTax = round($totalTax, 2);
             $totalAmount = round($totalAmount, 2);
 
-            // Keep sales_order_id only when all selected deliveries belong to one order
+            // Determine whether invoice belongs to one or multiple sales orders
             $salesOrderIds = $deliveries
                 ->pluck('sales_order_id')
                 ->unique()
@@ -315,9 +318,11 @@ class SalesInvoiceController extends Controller
             $invoice = SalesInvoice::create([
                 'customer_id' => $firstOrder->customer_id,
                 'branch_id' => $firstOrder->branch_id,
+
                 'sales_order_id' => $salesOrderIds->count() === 1
                     ? $salesOrderIds->first()
                     : null,
+
                 'invoice_number' => $validated['invoice_number'],
                 'invoice_date' => $validated['invoice_date'],
                 'due_date' => $validated['due_date'] ?? null,
@@ -394,6 +399,7 @@ class SalesInvoiceController extends Controller
             'data' => $invoice,
         ], 201);
     }
+
 
     public function show(string $id)
     {

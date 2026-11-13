@@ -20,7 +20,7 @@ Route::prefix('customer-prices')->group(function () {
         ->middleware('permission:customer_prices.edit');
 
     Route::delete('/{priceId}', [CustomerPriceController::class, 'destroy'])
-        ->middleware('permission:customer_prices.delete');
+        ->middleware('permission:customer_prices.edit');
 
 });
 

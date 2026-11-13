@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\CustomerPrice;
 use App\Models\ProductPrice;
 use App\Models\ProductUnit;
 use App\Models\SalesOrder;
@@ -83,7 +84,6 @@ class SalesOrderController extends Controller
         }
 
         $orders = $query
-            ->latest()
             ->paginate(15)
             ->withQueryString();
 
@@ -229,6 +229,9 @@ class SalesOrderController extends Controller
                     ->where('unit_id', $item['unit_id'])
                     ->where('is_sale_unit', true)
                     ->where('status', 'active')
+                    ->whereHas('product', function ($query) use ($companyId) {
+                        $query->where('company_id', $companyId);
+                    })
                     ->first();
 
                 if (!$productUnit) {
@@ -239,22 +242,62 @@ class SalesOrderController extends Controller
                 }
 
                 $quantity = (float) $item['quantity'];
+                
+                /*
+                |--------------------------------------------------------------------------
+                | Customer Specific Price
+                |--------------------------------------------------------------------------
+                */
 
-                // Fetch applicable price based on quantity and price type
-                $productPrice = ProductPrice::query()
+                $customerPrice = CustomerPrice::query()
+                    ->where('customer_id', $validated['customer_id'])
                     ->where('product_unit_id', $productUnit->id)
-                    ->where('minimum_quantity', '<=', $quantity)
-                    ->where('effective_from', '<=', $validated['order_date'])
-                    ->where('status', 'active')
-                    ->orderByDesc('minimum_quantity')
+                    ->where('min_quantity', '<=', $quantity)
+                    ->where('currency', $validated['currency'] ?? 'PKR')
+                    ->where('status', true)
+                    ->where(function ($query) use ($validated) {
+                        $query->whereNull('effective_from')
+                            ->orWhere('effective_from', '<=', $validated['order_date']);
+                    })
+                    ->where(function ($query) use ($validated) {
+                        $query->whereNull('effective_until')
+                            ->orWhere('effective_until', '>=', $validated['order_date']);
+                    })
+                    ->orderByDesc('min_quantity')
                     ->orderByDesc('effective_from')
                     ->first();
 
-                if (!$productPrice) {
-                    throw ValidationException::withMessages([
-                        "items.$index.price_type" =>
-                            'No applicable product price found for the selected quantity and price type.',
-                    ]);
+                /*
+                |--------------------------------------------------------------------------
+                | Fallback to Standard Product Price
+                |--------------------------------------------------------------------------
+                */
+
+                if ($customerPrice) {
+
+                    $unitPrice = (float) $customerPrice->price;
+                    $priceType = 'customer';
+
+                } else {
+
+                    $productPrice = ProductPrice::query()
+                        ->where('product_unit_id', $productUnit->id)
+                        ->where('minimum_quantity', '<=', $quantity)
+                        ->where('effective_from', '<=', $validated['order_date'])
+                        ->where('status', 'active')
+                        ->orderByDesc('minimum_quantity')
+                        ->orderByDesc('effective_from')
+                        ->first();
+
+                    if (!$productPrice) {
+                        throw ValidationException::withMessages([
+                            "items.$index.price_type" =>
+                                'No applicable customer or product price found for the selected quantity.',
+                        ]);
+                    }
+
+                    $unitPrice = (float) $productPrice->price;
+                    $priceType = $productPrice->price_type;
                 }
 
                 $conversionFactor = (float) $productUnit->conversion_factor;
@@ -263,9 +306,6 @@ class SalesOrderController extends Controller
                     $quantity * $conversionFactor,
                     8
                 );
-
-                $unitPrice = (float) $productPrice->price;
-                $priceType = $productPrice->price_type;
 
                 $grossAmount = round(
                     $quantity * $unitPrice,

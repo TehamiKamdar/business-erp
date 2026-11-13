@@ -48,7 +48,7 @@ class CustomerPriceController extends Controller
                 $q->where('product_unit_id', $id)
             )
             ->when($request->status !== null, fn ($q) =>
-                $q->where('status', $request->boolean('status'))
+                $q->where('status', $request->status)
             )
             ->latest()
             ->paginate(15);
@@ -91,14 +91,14 @@ class CustomerPriceController extends Controller
                 'date',
                 'after_or_equal:effective_from',
             ],
-            'status' => ['sometimes', 'boolean'],
+            'status' => ['sometimes', 'string'],
         ]);
 
         $price = DB::transaction(function () use ($validated, $companyId) {
             $price = CustomerPrice::create([
                 ...$validated,
                 'currency' => $validated['currency'] ?? 'PKR',
-                'status' => $validated['status'] ?? true,
+                'status' => 'active',
             ]);
 
             $this->auditService->log(
@@ -182,7 +182,7 @@ class CustomerPriceController extends Controller
                 'date',
                 'after_or_equal:effective_from',
             ],
-            'status' => ['sometimes', 'boolean'],
+            'status' => ['sometimes', 'string'],
         ]);
 
         $oldValues = $price->getOriginal();
@@ -220,25 +220,34 @@ class CustomerPriceController extends Controller
             $query->where('company_id', $companyId);
         })->findOrFail($priceId);
 
+        if ($price->status != "active") {
+            return response()->json([
+                'message' => 'Customer price is already inactive.',
+            ]);
+        }
+
         DB::transaction(function () use ($price, $companyId) {
-            $oldValues = $price->toArray();
+            $oldValues = $price->getOriginal();
+
+            $price->update([
+                'status' => 'inactive',
+            ]);
 
             $this->auditService->log(
                 $price,
-                'deleted',
+                'deactivated',
                 $oldValues,
-                null,
-                'Customer-specific product price deleted.',
+                $price->fresh()->toArray(),
+                'Customer-specific product price deactivated.',
                 [],
                 auth()->user(),
                 $companyId
             );
-
-            $price->delete();
         });
 
         return response()->json([
-            'message' => 'Customer price deleted successfully.',
+            'message' => 'Customer price deactivated successfully.',
+            'data' => $price->fresh(),
         ]);
     }
 }

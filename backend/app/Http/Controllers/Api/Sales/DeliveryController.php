@@ -98,7 +98,6 @@ class DeliveryController extends Controller
     {
         $validated = $request->validate([
             'sales_order_id' => ['required', 'uuid', 'exists:sales_orders,id'],
-            'warehouse_id' => ['required', 'uuid', 'exists:warehouses,id'],
             'delivery_number' => ['required', 'string', 'max:255'],
             'delivery_date' => ['required', 'date'],
             'notes' => ['nullable', 'string'],
@@ -146,15 +145,8 @@ class DeliveryController extends Controller
                 ]);
             }
 
-            if ($validated['warehouse_id'] !== $salesOrder->warehouse_id) {
-                throw ValidationException::withMessages([
-                    'warehouse_id' => 'Delivery warehouse must match the sales order warehouse.',
-                ]);
-            }
-
             // Check duplicate delivery number.
             $numberExists = Delivery::query()
-                ->where('warehouse_id', $validated['warehouse_id'])
                 ->where('delivery_number', $validated['delivery_number'])
                 ->exists();
 
